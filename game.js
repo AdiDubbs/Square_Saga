@@ -11,39 +11,42 @@ let startScreen = true;
 let modeScreen = false;
 let gameScreen = false;
 let endScreen = false;
-let quitButton = false;
+let quit = false;
+let hold = false;
 let rowClear = false;
 
-let colors = ['cyan', 'purple', 'orange', 'yellow', 'green', 'blue', 'red'];
+let classicColors = ['aqua', 'mediumblue', 'orange', 'yellow', 'limegreen', 'mediumpurple', 'red'];
 let modeColors = ['white', 'black', 'grey', 'dimgray'];
-let tetros = [];
-let currTetro = [];
-let allSquares = [];
-let prev, curr;
+let blocks = [];
+let squares = [];
+let currPoints = [];
+let heldPoints = [];
+let oldHeld = [];
+let currBlock, heldBlock;
+let bgColor, stripeColor;
 let score = 0;
 let time = 0;
 let mode = 0;
-let won = false;
 
 window.addEventListener('keydown', function(event) {
     if (event.key === 'ArrowLeft') {
-        if (curr.leftX > 0 ) {
-            curr.x -= BLOCK_SIZE;
+        if (currBlock.leftX > 0 ) {
+            currBlock.x -= BLOCK_SIZE;
         }
     } else if (event.key === 'ArrowRight') {
-        if (curr.rightX < BOARD_WIDTH) {
-            curr.x += BLOCK_SIZE;
+        if (currBlock.rightX < BOARD_WIDTH) {
+            currBlock.x += BLOCK_SIZE;
         }
     } else if (event.key === 'ArrowUp') {
-        if (curr.rotation < 3) {
-            curr.rotation += 1;
+        if (currBlock.rotation < 3) {
+            currBlock.rotation += 1;
         } else {
-            curr.rotation = 0;
+            currBlock.rotation = 0;
         }
     }
 });
 
-function designBoard() {
+function startBoard() {
     let canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("myCanvas"));
     let context = canvas.getContext('2d');
     if (context) {
@@ -51,57 +54,57 @@ function designBoard() {
         // background
         context.fillStyle = modeColors[0];
         context.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT * 7/20);
-        context.fillStyle = colors[Math.floor(Math.random() * 7)];
+        context.fillStyle = classicColors[Math.floor(Math.random() * 7)];
         context.fillRect(0, BOARD_HEIGHT * 7/20, BOARD_WIDTH, BOARD_HEIGHT * 6/20);    
-        context.fillStyle = modeColors[3];
+        context.fillStyle = modeColors[1];
         context.fillRect(0, BOARD_HEIGHT * 13/20, BOARD_WIDTH, BOARD_HEIGHT * 7/20);
 
         context.strokeStyle = modeColors[1];
         // strokes
         for (let i = 0; i < 10; i++) {
+            context.strokeStyle = modeColors[1];
             context.beginPath();
             context.moveTo(i * BLOCK_SIZE, 0);
-            context.lineTo(i * BLOCK_SIZE, BOARD_HEIGHT * 7/20);
+            context.lineTo(i * BLOCK_SIZE, BOARD_HEIGHT * 13/20);
             context.stroke();
             context.closePath();
 
+            context.strokeStyle = modeColors[2];
             context.beginPath();
             context.moveTo(i * BLOCK_SIZE, BOARD_HEIGHT * 13/20);
             context.lineTo(i * BLOCK_SIZE, BOARD_HEIGHT);
             context.stroke();
             context.closePath();
-
-            context.beginPath();
-            context.moveTo(i * BLOCK_SIZE, BOARD_HEIGHT * 7/20);
-            context.lineTo(i * BLOCK_SIZE, BOARD_HEIGHT * 13/20);
-            context.stroke();
-            context.closePath();
         }
 
         for (let j = 0; j < 7; j++) {
+            context.strokeStyle = modeColors[1];
             context.beginPath();
             context.moveTo(0, j * BLOCK_SIZE);
             context.lineTo(BOARD_WIDTH, j * BLOCK_SIZE);
             context.stroke();
             context.closePath();
-
-            context.beginPath();
-            context.moveTo(0, BOARD_HEIGHT * 13/20 + j * BLOCK_SIZE);
-            context.lineTo(BOARD_WIDTH, BOARD_HEIGHT * 13/20 + j * BLOCK_SIZE);
-            context.stroke();
-            context.closePath();
         }
         for (let k = 0; k < 6; k++) {
+            context.strokeStyle = modeColors[1];
             context.beginPath();
             context.moveTo(0, BOARD_HEIGHT * 7/20 + k * BLOCK_SIZE);
             context.lineTo(BOARD_WIDTH, BOARD_HEIGHT * 7/20 + k * BLOCK_SIZE);
             context.stroke();
             context.closePath();
         }
+        for (let l = 0; l < 7; l++) {
+            context.strokeStyle = modeColors[2];
+            context.beginPath();
+            context.moveTo(0, (BOARD_HEIGHT * 13/20) + (l * BLOCK_SIZE));
+            context.lineTo(BOARD_WIDTH, (BOARD_HEIGHT * 13/20) + (l * BLOCK_SIZE));
+            context.stroke();
+            context.closePath();
+        }   
     }
 }
 
-function make() {
+function pushBlock() {
     let type = Math.floor(Math.random() * 6) + 1;
     let color = 0;
     let x = 0;
@@ -121,13 +124,13 @@ function make() {
     }
     x += 40;
     x += BLOCK_SIZE;
-    tetros.push({"type": type, "rotation": rot, "color": color, "x": x, "y": y, "leftX": leftX, "rightX": rightX, "topY": topY, "bottomY": bottomY, "down": false});
-    curr = tetros[tetros.length - 1];
+    blocks.push({"type": type, "rotation": rot, "color": color, "x": x, "y": y, "leftX": leftX, "rightX": rightX, "topY": topY, "bottomY": bottomY, "down": false});
+    currBlock = blocks[blocks.length - 1];
 }
 
 function detectCollision(x, y) {
-    for (let i = 0; i < allSquares.length; i++) {
-        let s = allSquares[i];
+    for (let i = 0; i < squares.length; i++) {
+        let s = squares[i];
         if ((s.x == x) && (s.y == y + BLOCK_SIZE)) {
             return true; // Collision detected
         }
@@ -135,15 +138,253 @@ function detectCollision(x, y) {
     return false; // No collision
 }
 
+function createBlock(block, points, type, x, y, color, rot) {
+    let blockPoints = points;
+    if (type == 1) {
+        block.color = classicColors[0];
+        if (rot == 0) {
+            blockPoints.push({"x": x - 80, "y": y, "color": color});
+            blockPoints.push({"x": x - 40, "y": y, "color": color});
+            blockPoints.push({"x": x, "y": y , "color": color});
+            blockPoints.push({"x": x + 40, "y": y, "color": color});
+            block.leftX = x - 80;
+            block.rightX = x + 80;
+            block.topY = y - 40;
+            block.bottomY = y;
+        } else if (rot == 1) {
+            blockPoints.push({"x": x, "y": y, "color": color});
+            blockPoints.push({"x": x, "y": y - 40, "color": color});
+            blockPoints.push({"x": x, "y": y + 40, "color": color});
+            blockPoints.push({"x": x, "y": y + 80, "color": color});
+            block.leftX = x;
+            block.rightX = x + 40;
+            block.topY = y - 80;
+            block.bottomY = y + 80;
+        } else if (rot == 2) {
+            blockPoints.push({"x": x - 80, "y": y + 40, "color": color});
+            blockPoints.push({"x": x - 40, "y": y + 40, "color": color});
+            blockPoints.push({"x": x, "y": y + 40, "color": color});
+            blockPoints.push({"x": x + 40, "y": y + 40, "color": color});
+            block.leftX = x - 80;
+            block.rightX = x + 80;
+            block.topY = y;
+            block.bottomY = y + 40;
+        }  else if (rot == 3) {
+            blockPoints.push({"x": x - 40, "y": y, "color": color});
+            blockPoints.push({"x": x - 40, "y": y - 40, "color": color});
+            blockPoints.push({"x": x - 40, "y": y + 40, "color": color});
+            blockPoints.push({"x": x - 40, "y": y + 80, "color": color});
+            block.leftX = x - 40;
+            block.rightX = x;
+            block.topY = y - 80;
+            block.bottomY = y + 80;
+        }
+    } else if (type == 2) {
+        block.color = classicColors[1];
+        blockPoints.push({"x": x - 20, "y": y + 20, "color": color});
+        if (rot == 0) {
+            blockPoints.push({"x": x - 60, "y": y + 20, "color": color});
+            blockPoints.push({"x": x - 60, "y": y - 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 20, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 60;
+            block.topY = y - 60;
+            block.bottomY = y + 20;
+        } else if (rot == 1) {
+            blockPoints.push({"x": x - 20, "y": y - 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y - 20, "color": color});
+            blockPoints.push({"x": x - 20, "y": y + 60, "color": color});
+            block.leftX = x - 20;
+            block.rightX = x + 60;
+            block.topY = y - 60;
+            block.bottomY = y + 60;
+        } else if (rot == 2) {
+            blockPoints.push({"x": x - 60, "y": y + 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 60, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 60;
+            block.topY = y - 20;
+            block.bottomY = y + 60;
+        } else if (rot == 3) {
+            blockPoints.push({"x": x - 20, "y": y - 20, "color": color});
+            blockPoints.push({"x": x - 20, "y": y + 60, "color": color});
+            blockPoints.push({"x": x - 60, "y": y + 60, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 20;
+            block.topY = y - 60;
+            block.bottomY = y + 60;  
+        }
+    } else if (type == 3) {
+        block.color = classicColors[2];
+        blockPoints.push({"x": x - 20, "y": y + 20, "color": color});
+        if (rot == 0) {
+            blockPoints.push({"x": x - 60, "y": y + 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y - 20, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 60;
+            block.topY = y - 60;
+            block.bottomY = y + 20;
+
+        } else if (rot == 1) {
+            blockPoints.push({"x": x - 20, "y": y - 20, "color": color});
+            blockPoints.push({"x": x - 20, "y": y + 60, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 60, "color": color});
+            block.leftX = x - 20;
+            block.rightX = x + 60;
+            block.topY = y - 60;
+            block.bottomY = y + 60;
+        } else if (rot == 2) {
+            blockPoints.push({"x": x - 60, "y": y + 20, "color": color});
+            blockPoints.push({"x": x - 60, "y": y + 60, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 20, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 60;
+            block.topY = y - 20;
+            block.bottomY = y + 60;
+        } else if (rot == 3) {
+            blockPoints.push({"x": x - 20, "y": y - 20, "color": color});
+            blockPoints.push({"x": x - 60, "y": y - 20, "color": color});
+            blockPoints.push({"x": x - 20, "y": y + 60, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 20;
+            block.topY = y - 60;
+            block.bottomY = y + 60;
+        }
+    } else if (type == 4) {
+        block.color = classicColors[3];
+        blockPoints.push({"x": x - 40, "y": y, "color": color});
+        blockPoints.push({"x": x - 40, "y": y + 40, "color": color});
+        blockPoints.push({"x": x, "y": y , "color": color});
+        blockPoints.push({"x": x, "y": y + 40, "color": color});
+        block.leftX = x - 40;
+        block.rightX = x + 40;
+        block.topY = y - 40;
+        block.bottomY = y + 40;
+    } else if (type == 5) {
+        block.color = classicColors[4];
+        blockPoints.push({"x": x - 20, "y": y + 20, "color": color});
+        if (rot == 0) {
+            blockPoints.push({"x": x - 60, "y": y + 20, "color": color});
+            blockPoints.push({"x": x - 20, "y": y - 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y - 20, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 60;
+            block.topY = y - 60;
+            block.bottomY = y + 20;
+        } else if (rot == 1) {
+            blockPoints.push({"x": x - 20, "y": y - 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 60, "color": color});
+            block.leftX = x - 20;
+            block.rightX = x + 60;
+            block.topY = y - 60;
+            block.bottomY = y + 60;
+        } else if (rot == 2) {
+            blockPoints.push({"x": x - 60, "y": y + 60, "color": color});
+            blockPoints.push({"x": x - 20, "y": y + 60, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 20, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 60;
+            block.topY = y - 20;
+            block.bottomY = y + 60;
+        } else if (rot == 3) {
+            blockPoints.push({"x": x - 60, "y": y + 20, "color": color});
+            blockPoints.push({"x": x - 60, "y": y - 20, "color": color});
+            blockPoints.push({"x": x - 20, "y": y + 60, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 20;
+            block.topY = y - 60;
+            block.bottomY = y + 60;
+        }
+    } else if (type == 6) {
+        block.color = classicColors[5];
+        blockPoints.push({"x": x - 20, "y": y + 20, "color": color});
+        if (rot == 0) {
+            blockPoints.push({"x": x - 60, "y": y + 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 20, "color": color});
+            blockPoints.push({"x": x - 20, "y": y - 20, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 60;
+            block.topY = y - 60;
+            block.bottomY = y + 20;
+        } else if (rot == 1) {
+            blockPoints.push({"x": x - 20, "y": y - 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 20, "color": color});
+            blockPoints.push({"x": x - 20, "y": y + 60, "color": color});
+            block.leftX = x - 20;
+            block.rightX = x + 60;
+            block.topY = y - 60;
+            block.bottomY = y + 60;
+        } else if (rot == 2) {
+            blockPoints.push({"x": x - 60, "y": y + 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 20, "color": color});
+            blockPoints.push({"x": x - 20, "y": y + 60, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 60;
+            block.topY = y - 20;
+            block.bottomY = y + 60;
+        } else if (rot == 3) {
+            blockPoints.push({"x": x - 20, "y": y - 20, "color": color});
+            blockPoints.push({"x": x - 20, "y": y + 60, "color": color});
+            blockPoints.push({"x": x - 60, "y": y + 20, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 20;
+            block.topY = y - 60;
+            block.bottomY = y + 60;
+        }
+    } else if (type == 7) {
+        block.color = classicColors[6];
+        blockPoints.push({"x": x - 20, "y": y + 20, "color": color});
+        if (rot == 0) {
+            blockPoints.push({"x": x - 60, "y": y - 20, "color": color});
+            blockPoints.push({"x": x - 20, "y": y - 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 20, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 60;
+            block.topY = y - 60;
+            block.bottomY = y + 20;   
+        } else if (rot == 1) {
+            blockPoints.push({"x": x - 20, "y": y + 60, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y - 20, "color": color});
+            block.leftX = x - 20;
+            block.rightX = x + 60;
+            block.topY = y - 60;
+            block.bottomY = y + 60;
+        } else if (rot == 2) {
+            blockPoints.push({"x": x - 60, "y": y + 20, "color": color});
+            blockPoints.push({"x": x - 20, "y": y + 60, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 60, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 60;
+            block.topY = y - 20;
+            block.bottomY = y + 6
+        } else if (rot == 3) {
+            blockPoints.push({"x": x - 20, "y": y - 20, "color": color});
+            blockPoints.push({"x": x - 60, "y": y + 20, "color": color});
+            blockPoints.push({"x": x - 60, "y": y + 60, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 20;
+            block.topY = y - 60;
+            block.bottomY = y + 60;
+        }
+    }
+}
+
 function game() {
 
-    function board(context) {
-        context.strokeStyle = modeColors[2];
+    function drawBoard(context) {
         if (mode == 2) {
-            context.fillStyle = modeColors[3];
+            bgColor = modeColors[3];
+            stripeColor = modeColors[2];
         } else {
-            context.fillStyle = modeColors[1];
+            bgColor = modeColors[1];
+            stripeColor = modeColors[2];
         }
+        context.fillStyle = bgColor;
+        context.strokeStyle = stripeColor;
         context.fillRect(0, 0, canvas.width, canvas.height)
         context.lineWidth = 0.8;
         for (let i = 0; i < 10; i++) {
@@ -158,7 +399,8 @@ function game() {
         }
     }
 
-    function block(context, x, y) {
+    function drawBlock(context, x, y) {
+        context.lineWidth = 0.5;
         if (mode == 0) {
             context.strokeStyle = modeColors[1];
         } else if (mode == 1) {
@@ -179,250 +421,21 @@ function game() {
         context.stroke();
     }
 
-    function pieces(type, x, y, color, rot) {
-        if (type == 1) {
-            curr.color = colors[0];
-            if (rot == 0) {
-                currTetro.push({"x": x - 80, "y": y, "color": color});
-                currTetro.push({"x": x - 40, "y": y, "color": color});
-                currTetro.push({"x": x, "y": y , "color": color});
-                currTetro.push({"x": x + 40, "y": y, "color": color});
-                curr.leftX = x - 80;
-                curr.rightX = x + 80;
-                curr.topY = y - 40;
-                curr.bottomY = y;
-            } else if (rot == 1) {
-                currTetro.push({"x": x, "y": y, "color": color});
-                currTetro.push({"x": x, "y": y - 40, "color": color});
-                currTetro.push({"x": x, "y": y + 40, "color": color});
-                currTetro.push({"x": x, "y": y + 80, "color": color});
-                curr.leftX = x;
-                curr.rightX = x + 40;
-                curr.topY = y - 80;
-                curr.bottomY = y + 80;
-            } else if (rot == 2) {
-                currTetro.push({"x": x - 80, "y": y + 40, "color": color});
-                currTetro.push({"x": x - 40, "y": y + 40, "color": color});
-                currTetro.push({"x": x, "y": y + 40, "color": color});
-                currTetro.push({"x": x + 40, "y": y + 40, "color": color});
-                curr.leftX = x - 80;
-                curr.rightX = x + 80;
-                curr.topY = y;
-                curr.bottomY = y + 40;
-            }  else if (rot == 3) {
-                currTetro.push({"x": x - 40, "y": y, "color": color});
-                currTetro.push({"x": x - 40, "y": y - 40, "color": color});
-                currTetro.push({"x": x - 40, "y": y + 40, "color": color});
-                currTetro.push({"x": x - 40, "y": y + 80, "color": color});
-                curr.leftX = x - 40;
-                curr.rightX = x;
-                curr.topY = y - 80;
-                curr.bottomY = y + 80;
-            }
-        } else if (type == 2) {
-            curr.color = colors[1];
-            currTetro.push({"x": x - 20, "y": y + 20, "color": color});
-            if (rot == 0) {
-                currTetro.push({"x": x - 60, "y": y + 20, "color": color});
-                currTetro.push({"x": x - 60, "y": y - 20, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 20, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 60;
-                curr.topY = y - 60;
-                curr.bottomY = y + 20;
-            } else if (rot == 1) {
-                currTetro.push({"x": x - 20, "y": y - 20, "color": color});
-                currTetro.push({"x": x + 20, "y": y - 20, "color": color});
-                currTetro.push({"x": x - 20, "y": y + 60, "color": color});
-                curr.leftX = x - 20;
-                curr.rightX = x + 60;
-                curr.topY = y - 60;
-                curr.bottomY = y + 60;
-            } else if (rot == 2) {
-                currTetro.push({"x": x - 60, "y": y + 20, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 20, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 60, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 60;
-                curr.topY = y - 20;
-                curr.bottomY = y + 60;
-            } else if (rot == 3) {
-                currTetro.push({"x": x - 20, "y": y - 20, "color": color});
-                currTetro.push({"x": x - 20, "y": y + 60, "color": color});
-                currTetro.push({"x": x - 60, "y": y + 60, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 20;
-                curr.topY = y - 60;
-                curr.bottomY = y + 60;  
-            }
-        } else if (type == 3) {
-            curr.color = colors[2];
-            currTetro.push({"x": x - 20, "y": y + 20, "color": color});
-            if (rot == 0) {
-                currTetro.push({"x": x - 60, "y": y + 20, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 20, "color": color});
-                currTetro.push({"x": x + 20, "y": y - 20, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 60;
-                curr.topY = y - 60;
-                curr.bottomY = y + 20;
-
-            } else if (rot == 1) {
-                currTetro.push({"x": x - 20, "y": y - 20, "color": color});
-                currTetro.push({"x": x - 20, "y": y + 60, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 60, "color": color});
-                curr.leftX = x - 20;
-                curr.rightX = x + 60;
-                curr.topY = y - 60;
-                curr.bottomY = y + 60;
-            } else if (rot == 2) {
-                currTetro.push({"x": x - 60, "y": y + 20, "color": color});
-                currTetro.push({"x": x - 60, "y": y + 60, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 20, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 60;
-                curr.topY = y - 20;
-                curr.bottomY = y + 60;
-            } else if (rot == 3) {
-                currTetro.push({"x": x - 20, "y": y - 20, "color": color});
-                currTetro.push({"x": x - 60, "y": y - 20, "color": color});
-                currTetro.push({"x": x - 20, "y": y + 60, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 20;
-                curr.topY = y - 60;
-                curr.bottomY = y + 60;
-            }
-        } else if (type == 4) {
-            curr.color = colors[3];
-            currTetro.push({"x": x - 40, "y": y, "color": color});
-            currTetro.push({"x": x - 40, "y": y + 40, "color": color});
-            currTetro.push({"x": x, "y": y , "color": color});
-            currTetro.push({"x": x, "y": y + 40, "color": color});
-            curr.leftX = x - 40;
-            curr.rightX = x + 40;
-            curr.topY = y - 40;
-            curr.bottomY = y + 40;
-        } else if (type == 5) {
-            curr.color = colors[4];
-            currTetro.push({"x": x - 20, "y": y + 20, "color": color});
-            if (rot == 0) {
-                currTetro.push({"x": x - 60, "y": y + 20, "color": color});
-                currTetro.push({"x": x - 20, "y": y - 20, "color": color});
-                currTetro.push({"x": x + 20, "y": y - 20, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 60;
-                curr.topY = y - 60;
-                curr.bottomY = y + 20;
-            } else if (rot == 1) {
-                currTetro.push({"x": x - 20, "y": y - 20, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 20, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 60, "color": color});
-                curr.leftX = x - 20;
-                curr.rightX = x + 60;
-                curr.topY = y - 60;
-                curr.bottomY = y + 60;
-            } else if (rot == 2) {
-                currTetro.push({"x": x - 60, "y": y + 60, "color": color});
-                currTetro.push({"x": x - 20, "y": y + 60, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 20, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 60;
-                curr.topY = y - 20;
-                curr.bottomY = y + 60;
-            } else if (rot == 3) {
-                currTetro.push({"x": x - 60, "y": y + 20, "color": color});
-                currTetro.push({"x": x - 60, "y": y - 20, "color": color});
-                currTetro.push({"x": x - 20, "y": y + 60, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 20;
-                curr.topY = y - 60;
-                curr.bottomY = y + 60;
-            }
-        } else if (type == 6) {
-            curr.color = colors[5];
-            currTetro.push({"x": x - 20, "y": y + 20, "color": color});
-            if (rot == 0) {
-                currTetro.push({"x": x - 60, "y": y + 20, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 20, "color": color});
-                currTetro.push({"x": x - 20, "y": y - 20, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 60;
-                curr.topY = y - 60;
-                curr.bottomY = y + 20;
-            } else if (rot == 1) {
-                currTetro.push({"x": x - 20, "y": y - 20, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 20, "color": color});
-                currTetro.push({"x": x - 20, "y": y + 60, "color": color});
-                curr.leftX = x - 20;
-                curr.rightX = x + 60;
-                curr.topY = y - 60;
-                curr.bottomY = y + 60;
-            } else if (rot == 2) {
-                currTetro.push({"x": x - 60, "y": y + 20, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 20, "color": color});
-                currTetro.push({"x": x - 20, "y": y + 60, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 60;
-                curr.topY = y - 20;
-                curr.bottomY = y + 60;
-            } else if (rot == 3) {
-                currTetro.push({"x": x - 20, "y": y - 20, "color": color});
-                currTetro.push({"x": x - 20, "y": y + 60, "color": color});
-                currTetro.push({"x": x - 60, "y": y + 20, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 20;
-                curr.topY = y - 60;
-                curr.bottomY = y + 60;
-            }
-        } else if (type == 7) {
-            curr.color = colors[6];
-            currTetro.push({"x": x - 20, "y": y + 20, "color": color});
-            if (rot == 0) {
-                currTetro.push({"x": x - 60, "y": y - 20, "color": color});
-                currTetro.push({"x": x - 20, "y": y - 20, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 20, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 60;
-                curr.topY = y - 60;
-                curr.bottomY = y + 20;   
-            } else if (rot == 1) {
-                currTetro.push({"x": x - 20, "y": y + 60, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 20, "color": color});
-                currTetro.push({"x": x + 20, "y": y - 20, "color": color});
-                curr.leftX = x - 20;
-                curr.rightX = x + 60;
-                curr.topY = y - 60;
-                curr.bottomY = y + 60;
-            } else if (rot == 2) {
-                currTetro.push({"x": x - 60, "y": y + 20, "color": color});
-                currTetro.push({"x": x - 20, "y": y + 60, "color": color});
-                currTetro.push({"x": x + 20, "y": y + 60, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 60;
-                curr.topY = y - 20;
-                curr.bottomY = y + 60;
-            } else if (rot == 3) {
-                currTetro.push({"x": x - 20, "y": y - 20, "color": color});
-                currTetro.push({"x": x - 60, "y": y + 20, "color": color});
-                currTetro.push({"x": x - 60, "y": y + 60, "color": color});
-                curr.leftX = x - 60;
-                curr.rightX = x + 20;
-                curr.topY = y - 60;
-                curr.bottomY = y + 60;
-            }
-        }
-    }
-
-    function draw(context) {
-        for (let i = 0; i < allSquares.length; i++) {
-            let s = allSquares[i];
+    function chooseBlock(context) {
+        for (let i = 0; i < squares.length; i++) {
+            let s = squares[i];
             context.fillStyle = s.color;
-            block(context, s.x, s.y);
+            drawBlock(context, s.x, s.y);
         }
-        for (let j = 0; j < currTetro.length; j++) {
-            let c = currTetro[j];
+        for (let j = 0; j < currPoints.length; j++) {
+            let c = currPoints[j];
             context.fillStyle = c.color;
-            block(context, c.x, c.y);
+            drawBlock(context, c.x, c.y);
+        }
+        for (let k = 0; k < heldPoints.length; k++) {
+            let h = heldPoints[k];
+            context.fillStyle = h.color;
+            drawBlock(context, h.x, h.y);
         }
     }
     
@@ -430,49 +443,47 @@ function game() {
     let canvas = /** @type {HTMLCanvasElement} */ (document.getElementById("myCanvas"));
     let context = canvas.getContext('2d');
 
-    board(context);
+    drawBoard(context);
 
-    for (let i = 0; i < currTetro.length; i++) {
-        let c = currTetro[i];
+    for (let i = 0; i < currPoints.length; i++) {
+        let c = currPoints[i];
         let x = c.x;
         let y = c.y; 
         if (detectCollision(x, y)) { 
-            curr.down = true;
+            currBlock.down = true;
             break;
         }
     }
 
-    if (curr.bottomY >= BOARD_HEIGHT) {
-        curr.down = true;
+    if (currBlock.bottomY >= BOARD_HEIGHT) {
+        currBlock.down = true;
     }
 
-    if (curr.down) {
-        if (curr.topY <= 0) {
-            endScreen = true;
-            gameScreen = false;
+    if (currBlock.down) {
+        if (currBlock.topY <= 0) {
+            quit = true;
         }
         score += BLOCK_BONUS;
-        prev = curr;
-        for (let i = 0; i < currTetro.length; i++) {
-            allSquares.push(currTetro[i]);
+        for (let i = 0; i < currPoints.length; i++) {
+            squares.push(currPoints[i]);
         }
-        currTetro = [];
-        make();
+        currPoints = [];
+        pushBlock();
     } else {
-        currTetro = [];
-        curr.y += BLOCK_SPEED;
+        currPoints = [];
+        currBlock.y += BLOCK_SPEED;
     }
 
     for (let i = 1; i < 21; i++) {
         let rowBlocks = [];
-        allSquares.forEach(function(s) {
+        squares.forEach(function(s) {
             if (s.y == i * BLOCK_SIZE) {
                 rowBlocks.push(s);
             }
             if (rowBlocks.length == 10) {
                 let posY = rowBlocks[0].y;
-                allSquares = allSquares.filter(s => !rowBlocks.includes(s));
-                allSquares.forEach(function(s) {
+                squares = squares.filter(s => !rowBlocks.includes(s));
+                squares.forEach(function(s) {
                     if (s.y < posY) {
                         s.y += BLOCK_SIZE;
                     }
@@ -484,8 +495,8 @@ function game() {
         })
     }
 
-    pieces(curr.type, curr.x, curr.y, curr.color, curr.rotation);
-    draw(context);
+    createBlock(currBlock, currPoints, currBlock.type, currBlock.x, currBlock.y, currBlock.color, currBlock.rotation);
+    chooseBlock(context);
 
     if (gameScreen) {
         window.requestAnimationFrame(game);
@@ -496,7 +507,7 @@ function menus() {
 
     function startMenu(context) {
 
-        designBoard();
+        startBoard();
         context.fillStyle = 'black';
         context.fillRect(0, 0, canvas.width, canvas.height);
         context.font = '800 100px Courier New';
@@ -513,20 +524,17 @@ function menus() {
 
         // Create start button
         let startButton = document.createElement("startButton");
-        startButton = createButton("Start", startButton);
+        startButton = createButton("Start", startButton, 650, 600, "red", "white");
+        document.body.appendChild(startButton);
         startButton.onclick = function () {
             modeScreen = true;
-            //gameScreen = true;
             document.body.removeChild(startButton);
-            //make();
-            //game();
         }
-        document.body.appendChild(startButton);
     }
 
     function modeMenu(context) {
         
-        designBoard();
+        startBoard();
 
         context.fillStyle = 'black';
         context.fillRect(0, 0, canvas.width, canvas.height);
@@ -552,48 +560,15 @@ function menus() {
         }
 
         let lightButton = document.createElement("lightButton");
-        lightButton.style.width = "150px";
-        lightButton.style.height = "30px";
-        lightButton.innerHTML = "Light";
-        lightButton.style.fontSize = "25px";
-        lightButton.style.padding = "2px";
-        lightButton.style.textAlign = "center";
-        lightButton.style.borderRadius = "10px";
-        lightButton.style.backgroundColor = "white";
-        lightButton.style.color = "black";
-        lightButton.style.position = "absolute";
-        lightButton.style.left = "530px";
-        lightButton.style.top = "600px";
+        lightButton = createButton("Light", lightButton, 550, 600, "white", "black");
         document.body.appendChild(lightButton);
         
         let darkButton = document.createElement("darkButton");
-        darkButton.style.width = "150px";
-        darkButton.style.height = "30px";
-        darkButton.innerHTML = "Dark";
-        darkButton.style.fontSize = "25px";
-        darkButton.style.padding = "2px";
-        darkButton.style.textAlign = "center";
-        darkButton.style.borderRadius = "10px";
-        darkButton.style.backgroundColor = "grey";
-        darkButton.style.color = "black";
-        darkButton.style.position = "absolute";
-        darkButton.style.left = "760px";
-        darkButton.style.top = "600px";
+        darkButton = createButton("Dark", darkButton, 750, 600, "dimgrey", "white");
         document.body.appendChild(darkButton);
 
         let classicButton = document.createElement("classicButton");
-        classicButton.style.width = "150px";
-        classicButton.style.height = "30px";
-        classicButton.innerHTML = "Classic";
-        classicButton.style.fontSize = "25px";
-        classicButton.style.padding = "2px";
-        classicButton.style.textAlign = "center";
-        classicButton.style.borderRadius = "10px";
-        classicButton.style.backgroundColor = "blue";
-        classicButton.style.color = "white";
-        classicButton.style.position = "absolute";
-        classicButton.style.left = "660px";
-        classicButton.style.top = "680px";
+        classicButton = createButton("Classic", classicButton, 650, 680, "blue", "white");
         document.body.appendChild(classicButton);
 
         lightButton.onclick = function () {
@@ -617,7 +592,7 @@ function menus() {
             document.body.removeChild(lightButton);
             document.body.removeChild(darkButton);
             document.body.removeChild(classicButton);
-            make();
+            pushBlock();
             game();
         }
     }
@@ -625,120 +600,167 @@ function menus() {
 
     function gameplayMenu(context) {
         
-            context.fillStyle = 'black';
-            context.fillRect(0, 0, canvas.width, canvas.height)
-            
+        context.fillStyle = 'black';
+        context.fillRect(0, 0, canvas.width, canvas.height)
+        
+        context.fillStyle = 'white';
+        context.font = '600 40px Courier New';
+        context.fillText("SCORE", 300, 100);
+        context.textAlign = "center";
+
+        // Create score display
+        context.fillStyle = 'white';
+        context.font = '400 100px Courier New';
+        context.fillText(score, 300, 200);
+        context.textAlign = "center";
+
+        if (rowClear && time < 50) {
             context.fillStyle = 'white';
-            context.font = '600 40px Courier New';
-            context.fillText("SCORE", 300, 100);
+            context.font = '550 30px Courier New';
+            context.fillText("Row Cleared!", 300, 350);
             context.textAlign = "center";
+            time++;
+        }
+        if (time == 50) {
+            rowClear = false;
+            time = 0;
+        }
 
-            // Create score display
-            context.fillStyle = 'white';
-            context.font = '400 100px Courier New';
-            context.fillText(score, 300, 200);
-            context.textAlign = "center";
+        context.fillStyle = bgColor;
+        context.fillRect(200, 300, 200, 200);
+        context.lineWidth = 2;
+        context.stroke();
+        context.strokeStyle = stripeColor;
+        context.lineWidth = 0.8;
 
-            if (rowClear && time < 50) {
-                context.fillStyle = 'white';
-                context.font = '550 30px Courier New';
-                context.fillText("Row Cleared!", 300, 350);
-                context.textAlign = "center";
-                time++;
-            }
-            if (time == 50) {
-                rowClear = false;
-                time = 0;
-            }
+        for (let i = 0; i < 6; i++) {
+            context.moveTo(200, 300 + i * BLOCK_SIZE);
+            context.lineTo(400, 300 + i * BLOCK_SIZE);
+            context.stroke();
+        }
+        for (let i = 0; i < 6; i++) {
+            context.moveTo(200 + i * BLOCK_SIZE, 300);
+            context.lineTo(200 + i * BLOCK_SIZE, 500);
+            context.stroke();
+        }
 
-        if (gameScreen && !quitButton) {
-            quitButton = true;
-            let endButton = document.createElement("endButton");    
-            endButton = createButton("End", endButton);
-            endButton.id = "endButton";
-            document.body.appendChild(endButton);
+        if (hold) {
+            createBlock(heldBlock, heldPoints, heldBlock.type, 200, 300, heldBlock.color, heldBlock.rotation);
+            oldHeld.push(heldBlock.x);
+            oldHeld.push(heldBlock.y);
+        }
 
-            endButton.onclick = function () {
-                endScreen = true;
-                gameScreen = false;
-                document.body.removeChild(endButton);
-            };
-        } else if (!gameScreen && quitButton) {
-            quitButton = false;
-            gameScreen = false;
-            let endButton = document.getElementById("endButton");
-            if (endButton) {
-                document.body.removeChild(endButton);
+        // Create hold button
+        let holdButton = document.getElementById("holdButton");
+        if (!holdButton) {
+            let holdCheck = document.createElement("holdButton");
+            holdCheck = createButton("Hold", holdCheck, 650, 600, "red", "white");
+            holdCheck.id = "holdButton";
+            document.body.appendChild(holdCheck);
+        }
+        let endButton = document.getElementById("endButton");
+        if (!endButton) {
+            let endCheck = document.createElement("endButton");    
+            endCheck = createButton("End", endCheck, 650, 680, "red", "white");
+            endCheck.id = "endButton";
+            document.body.appendChild(endCheck);
+        }
+        if (holdButton) {
+            holdButton.onclick = function () {
+                hold = true;
+                heldBlock = currBlock;
+                blocks.pop();
+                pushBlock();
             }
         }
-        // let endButton = document.getElementById("endButton");
-        // if (endButton) {
-        //         endButton.onclick = function () {
-        //             endScreen = true;
-        //             gameScreen = false;
-        //             document.body.removeChild(endButton);
-        //         }
-        // }
+        if (endButton) {
+            endButton.onclick = function () {
+                quit = true;
+            }
+        }
+
+        if (quit) {
+            console.log("quit")
+            let hold = document.getElementById("holdButton");
+            let end = document.getElementById("endButton");
+            endScreen = true;
+            gameScreen = false;
+            if (hold) { document.body.removeChild(hold); }
+            if (end) { document.body.removeChild(end); }
+        }
     }
 
     function endMenu(context) {
         context.fillStyle = 'black';
         context.fillRect(0, 0, canvas.width, canvas.height);
 
-        if (score > 0) {
-            if (mode == 1) {
-                context.fillStyle = 'white';
-                context.font = '540 25px Courier New';
-                context.fillText("You have chosen the path of light", 300, 400);
-                context.fillText("and have saved the universe.", 300, 450);
+        if (mode != 0) {
+            if (score > 2000) {
+                if (mode == 1) {
+                    context.fillStyle = 'white';
+                    context.font = '540 25px Courier New';
+                    context.fillText("You have chosen the path of light", 300, 400);
+                    context.fillText("and have saved the universe.", 300, 450);
+                } else if (mode == 2) {
+                    context.fillStyle = 'red';
+                    context.font = '540 25px Courier New';
+                    context.fillText("You have chosen the path of darkness", 300, 400);
+                    context.fillText("and have conquered the universe.", 300, 450);
+                }
+                context.font = '600 50px Courier New';
+                context.fillText("You Won!", 300, 250);
+                context.textAlign = "center";
+            } else {
+                if (mode == 1) {
+                    context.fillStyle = 'white';
+                    context.font = '540 25px Courier New';
+                    context.fillText("You had chosen the path of light", 300, 400);
+                    context.fillText("but the darkness has won.", 300, 450);
+                    context.fillText("The world has been destroyed.", 300, 500);
+                } else if (mode == 2) {
+                    context.fillStyle = 'red';
+                    context.font = '540 25px Courier New';
+                    context.fillText("You had chosen the path of darkness", 300, 400);
+                    context.fillText("but the light proved too strong.", 300, 450);
+                    context.fillText("The darkness has been vanquished.", 300, 500);
+                }
+                context.font = '600 50px Courier New';
+                context.fillText("You Lost ...", 300, 250);
+                context.textAlign = "center";
             }
-            if (mode == 2) {
-                context.fillStyle = 'red';
-                context.font = '540 25px Courier New';
-                context.fillText("You have chosen the path of darkness", 300, 400);
-                context.fillText("and have conquered the universe.", 300, 450);
-            }
-            context.font = '600 50px Courier New';
-            context.fillText("You Won!", 300, 250);
-            context.textAlign = "center";
         } else {
-            if (mode == 1) {
-                context.fillStyle = 'white';
-                context.font = '540 25px Courier New';
-                context.fillText("You had chosen the path of light", 300, 400);
-                context.fillText("but the darkness has won.", 300, 450);
-                context.fillText("The world has been destroyed.", 300, 500);
-            } else if (mode == 2) {
-                context.fillStyle = 'red';
-                context.font = '540 25px Courier New';
-                context.fillText("You had chosen the path of darkness", 300, 400);
-                context.fillText("but the light proved too strong.", 300, 450);
-                context.fillText("The darkness has been vanquished.", 300, 500);
-            }
-            context.font = '600 50px Courier New';
-            context.fillText("You Lost ...", 300, 250);
+            context.fillStyle = 'white';
+
+            context.font = '600 100px Courier New';
+            context.fillText("GAME OVER", 300, 250);
+            context.textAlign = "center";
+
+            context.font = '400 30px Courier New';
+            context.fillText("Would you like to play again?", 300, 350);
             context.textAlign = "center";
         }
 
+        
+
+        context.fillStyle = 'white';
         context.font = '600 25px Courier New';
-        context.fillText("Your score: " + score, 300, 600);
+        context.fillText("Your score: " + score, 300, 650);
         context.textAlign = "center";
     }
 
-    function createButton(text, button) {
+    function createButton(text, button, left, top, bgColor, textColor) {
         button.style.width = "100px";
         button.style.height = "30px";
         button.innerHTML = text;
-        button.style.font = "Arial";
         button.style.fontSize = "25px";
         button.style.padding = "2px";
         button.style.textAlign = "center";
         button.style.borderRadius = "10px";
-        button.style.backgroundColor = "red";
-        button.style.color = "white";
+        button.style.backgroundColor = bgColor;
+        button.style.color = textColor;
         button.style.position = "absolute";
-        button.style.left = "670px";
-        button.style.top = "600px";
+        button.style.left = left + "px";
+        button.style.top = top + "px";
         return button;
     }
 
@@ -754,7 +776,6 @@ function menus() {
     } else if (gameScreen) {
         gameplayMenu(context);
     } else if (endScreen) {
-        endScreen = false;
         endMenu(context);
     }
     window.requestAnimationFrame(menus);
