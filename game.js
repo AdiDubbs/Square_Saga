@@ -4,6 +4,7 @@ const BLOCK_SIZE = 40;
 const BLOCK_SPEED = 4;
 const ROW_BONUS = 100;
 const BLOCK_BONUS = 20;
+const HOLD_COST = -50;
 const BOARD_WIDTH = 400;
 const BOARD_HEIGHT = 800;
 
@@ -11,11 +12,14 @@ let startScreen = true;
 let modeScreen = false;
 let gameScreen = false;
 let endScreen = false;
+let instructionScreen = false;
+let aboutScreen = false;
 let quit = false;
 let hold = false;
 let rowClear = false;
 
 let classicColors = ['aqua', 'mediumblue', 'orange', 'yellow', 'limegreen', 'mediumpurple', 'red'];
+let newColors = ['deeppink', 'tan', 'maroon', 'darkgreen'];
 let modeColors = ['white', 'black', 'grey', 'dimgray'];
 let blocks = [];
 let squares = [];
@@ -25,7 +29,7 @@ let oldHeld = [];
 let currBlock, heldBlock;
 let bgColor, stripeColor;
 let score = 0;
-let time = 0;
+let health;
 let mode = 0;
 
 window.addEventListener('keydown', function(event) {
@@ -105,7 +109,7 @@ function startBoard() {
 }
 
 function pushBlock() {
-    let type = Math.floor(Math.random() * 6) + 1;
+    let type = Math.floor(Math.random() * 10) + 1;
     let color = 0;
     let x = 0;
     let y = 0;
@@ -114,7 +118,7 @@ function pushBlock() {
     let topY = 0;
     let bottomY = 0;
     let rot = 0;
-    if ((type == 1) || (type == 4)) {
+    if ((type == 1) || (type == 4) || (type == 9)) {
         x = Math.floor(Math.random() * 8) * BLOCK_SIZE;
     } else {
         x = Math.floor(Math.random() * 6) * (BLOCK_SIZE/2);
@@ -138,8 +142,7 @@ function detectCollision(x, y) {
     return false; // No collision
 }
 
-function createBlock(block, points, type, x, y, color, rot) {
-    let blockPoints = points;
+function createBlock(block, blockPoints, type, x, y, color, rot) {
     if (type == 1) {
         block.color = classicColors[0];
         if (rot == 0) {
@@ -226,7 +229,6 @@ function createBlock(block, points, type, x, y, color, rot) {
             block.rightX = x + 60;
             block.topY = y - 60;
             block.bottomY = y + 20;
-
         } else if (rot == 1) {
             blockPoints.push({"x": x - 20, "y": y - 20, "color": color});
             blockPoints.push({"x": x - 20, "y": y + 60, "color": color});
@@ -370,6 +372,76 @@ function createBlock(block, points, type, x, y, color, rot) {
             block.topY = y - 60;
             block.bottomY = y + 60;
         }
+    } else if (type == 8) {
+        block.color = newColors[0];
+        blockPoints.push({"x": x - 20, "y": y + 20, "color": color});
+        block.leftX = x - 20;
+        block.rightX = x + 20;
+        block.topY = y - 20;
+        block.bottomY = y + 20;
+    } else if (type == 9) {
+        block.color = newColors[1];
+        if (rot == 0) {
+            blockPoints.push({"x": x - 40, "y": y, "color": color});
+            blockPoints.push({"x": x, "y": y, "color": color});
+            block.leftX = x - 40;
+            block.rightX = x + 40;
+            block.topY = y - 40;
+            block.bottomY = y;
+        } else if (rot == 1) {
+            blockPoints.push({"x": x, "y": y, "color": color});
+            blockPoints.push({"x": x, "y": y + 40, "color": color});
+            block.leftX = x;
+            block.rightX = x + 40;
+            block.topY = y - 40;
+            block.bottomY = y + 40;
+        } else if (rot == 2) {
+            blockPoints.push({"x": x - 40, "y": y + 40, "color": color});
+            blockPoints.push({"x": x, "y": y + 40, "color": color});
+            block.leftX = x - 40;
+            block.rightX = x + 40;
+            block.topY = y;
+            block.bottomY = y + 40;
+        } else if (rot == 3) {
+            blockPoints.push({"x": x - 40, "y": y, "color": color});
+            blockPoints.push({"x": x - 40, "y": y + 40, "color": color});
+            block.leftX = x - 40;
+            block.rightX = x;
+            block.topY = y - 40;
+            block.bottomY = y + 40;
+        }
+    } else if (type == 10) { 
+        block.color = newColors[2];
+        blockPoints.push({"x": x - 20, "y": y + 20, "color": color});
+        if (rot == 1) {
+            blockPoints.push({"x": x - 20, "y": y - 20, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 20, "color": color});
+            block.leftX = x - 20;
+            block.rightX = x + 60;
+            block.topY = y - 60;
+            block.bottomY = y + 20;
+        } else if (rot == 0) {
+            blockPoints.push({"x": x - 20, "y": y - 20, "color": color});
+            blockPoints.push({"x": x - 60, "y": y + 20, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 20;
+            block.topY = y - 60;
+            block.bottomY = y + 20;
+        } else if (rot == 2) {
+            blockPoints.push({"x": x - 20, "y": y + 60, "color": color});
+            blockPoints.push({"x": x - 60, "y": y + 20, "color": color});
+            block.leftX = x - 60;
+            block.rightX = x + 20;
+            block.topY = y - 20;
+            block.bottomY = y + 60;
+        } else if (rot == 3) {
+            blockPoints.push({"x": x - 20, "y": y + 60, "color": color});
+            blockPoints.push({"x": x + 20, "y": y + 20, "color": color});
+            block.leftX = x - 20;
+            block.rightX = x + 60;
+            block.topY = y - 20;
+            block.bottomY = y + 60;
+        }
     }
 }
 
@@ -433,9 +505,20 @@ function game() {
             drawBlock(context, c.x, c.y);
         }
         for (let k = 0; k < heldPoints.length; k++) {
+            debugger;
             let h = heldPoints[k];
-            context.fillStyle = h.color;
-            drawBlock(context, h.x, h.y);
+            let canvas2 = /** @type {HTMLCanvasElement} */ (document.getElementById("myCanvas2"));
+            let context2 = canvas2.getContext('2d');
+            if (context2) {
+                if (mode == 0) {
+                    context2.fillStyle = h.color;
+                } else if (mode == 1) {
+                    context2.fillStyle = modeColors[0];
+                } else if (mode == 2) {
+                    context2.fillStyle = modeColors[1];
+                }
+            }
+            drawBlock(context2, h.x, h.y);
         }
     }
     
@@ -445,18 +528,27 @@ function game() {
 
     drawBoard(context);
 
+    currPoints = [];
+    createBlock(currBlock, currPoints, currBlock.type, currBlock.x, currBlock.y, currBlock.color, currBlock.rotation);
+    chooseBlock(context);
+
+    if (hold) {
+        createBlock(heldBlock, heldPoints, heldBlock.type, 400, 550, heldBlock.color, heldBlock.rotation);
+        chooseBlock(context);
+    }
+
+    if (currBlock.bottomY >= BOARD_HEIGHT) {
+        currBlock.down = true;
+    }
+
     for (let i = 0; i < currPoints.length; i++) {
         let c = currPoints[i];
         let x = c.x;
         let y = c.y; 
         if (detectCollision(x, y)) { 
-            currBlock.down = true;
-            break;
+                currBlock.down = true;
+                break;
         }
-    }
-
-    if (currBlock.bottomY >= BOARD_HEIGHT) {
-        currBlock.down = true;
     }
 
     if (currBlock.down) {
@@ -494,9 +586,6 @@ function game() {
             }
         })
     }
-
-    createBlock(currBlock, currPoints, currBlock.type, currBlock.x, currBlock.y, currBlock.color, currBlock.rotation);
-    chooseBlock(context);
 
     if (gameScreen) {
         window.requestAnimationFrame(game);
@@ -587,13 +676,11 @@ function menus() {
         }
 
         function buttonClick() {
-            gameScreen = true;
+            aboutScreen = true;
             modeScreen = false;
             document.body.removeChild(lightButton);
             document.body.removeChild(darkButton);
             document.body.removeChild(classicButton);
-            pushBlock();
-            game();
         }
     }
     
@@ -602,75 +689,76 @@ function menus() {
         
         context.fillStyle = 'black';
         context.fillRect(0, 0, canvas.width, canvas.height)
-        
-        context.fillStyle = 'white';
-        context.font = '600 40px Courier New';
-        context.fillText("SCORE", 300, 100);
-        context.textAlign = "center";
 
-        // Create score display
         context.fillStyle = 'white';
-        context.font = '400 100px Courier New';
-        context.fillText(score, 300, 200);
-        context.textAlign = "center";
 
-        if (rowClear && time < 50) {
-            context.fillStyle = 'white';
-            context.font = '550 30px Courier New';
-            context.fillText("Row Cleared!", 300, 350);
+        if (mode == 0) {
+            context.font = '600 40px Courier New';
+            context.fillText("YOUR SCORE", 300, 100);
+            context.font = '400 100px Courier New';
+            context.fillText(score, 300, 250);
             context.textAlign = "center";
-            time++;
-        }
-        if (time == 50) {
-            rowClear = false;
-            time = 0;
+        } else if (mode == 1) {
+            context.font = '600 40px Courier New';
+            context.fillText("HEALTH", 130, 100);
+            let health = 2000 - score;
+            context.font = '400 80px Courier New';
+            context.fillText(health, 130, 200);
+            context.textAlign = "center";
+            var image = new Image();
+            image.src = "Images/Monster.png";
+            context.drawImage(image, 250, 50, 300, 300);
+        } else if (mode == 2) {
+            context.font = '600 40px Courier New';
+            context.fillText("AURA", 130, 100);
+            let aura = 2000 - score;
+            context.font = '400 80px Courier New';
+            context.fillText(aura, 130, 200);
+            context.textAlign = "center";
+            var image = new Image();
+            image.src = "Images/Tree.png";
+            context.drawImage(image, 250, 50, 300, 300);
         }
 
         context.fillStyle = bgColor;
-        context.fillRect(200, 300, 200, 200);
+        context.fillRect(300, 400, 200, 200);
         context.lineWidth = 2;
-        context.stroke();
-        context.strokeStyle = stripeColor;
-        context.lineWidth = 0.8;
-
-        for (let i = 0; i < 6; i++) {
-            context.moveTo(200, 300 + i * BLOCK_SIZE);
-            context.lineTo(400, 300 + i * BLOCK_SIZE);
-            context.stroke();
-        }
-        for (let i = 0; i < 6; i++) {
-            context.moveTo(200 + i * BLOCK_SIZE, 300);
-            context.lineTo(200 + i * BLOCK_SIZE, 500);
-            context.stroke();
-        }
-
-        if (hold) {
-            createBlock(heldBlock, heldPoints, heldBlock.type, 200, 300, heldBlock.color, heldBlock.rotation);
-            oldHeld.push(heldBlock.x);
-            oldHeld.push(heldBlock.y);
-        }
+        context.strokeStyle = 'white';
+        context.strokeRect(300, 400, 200, 200);
 
         // Create hold button
         let holdButton = document.getElementById("holdButton");
         if (!holdButton) {
             let holdCheck = document.createElement("holdButton");
-            holdCheck = createButton("Hold", holdCheck, 650, 600, "red", "white");
+            holdCheck = createButton("Hold", holdCheck, 550, 500, "red", "white");
             holdCheck.id = "holdButton";
             document.body.appendChild(holdCheck);
         }
         let endButton = document.getElementById("endButton");
         if (!endButton) {
             let endCheck = document.createElement("endButton");    
-            endCheck = createButton("End", endCheck, 650, 680, "red", "white");
+            endCheck = createButton("End", endCheck, 650, 700, "red", "white");
             endCheck.id = "endButton";
             document.body.appendChild(endCheck);
         }
         if (holdButton) {
             holdButton.onclick = function () {
-                hold = true;
-                heldBlock = currBlock;
-                blocks.pop();
-                pushBlock();
+                if (hold) {
+                    currBlock = heldBlock;
+                    currPoints = heldPoints;
+                    holdButton.textContent = "Hold";
+                    heldBlock = [];
+                    heldPoints = [];
+                    hold = false;
+                } else {
+                    hold = true;
+                    blocks.pop();
+                    heldBlock = currBlock;
+                    heldPoints = currPoints;
+                    holdButton.textContent = "Unhold";
+                    score += HOLD_COST;
+                    pushBlock();
+                }
             }
         }
         if (endButton) {
@@ -679,14 +767,19 @@ function menus() {
             }
         }
 
+        if (score >= 2000 && mode != 0) {
+            quit = true;
+        }
+
         if (quit) {
-            console.log("quit")
-            let hold = document.getElementById("holdButton");
-            let end = document.getElementById("endButton");
+            let holdButton = document.getElementById("holdButton");
+            let endButton = document.getElementById("endButton");
             endScreen = true;
             gameScreen = false;
-            if (hold) { document.body.removeChild(hold); }
-            if (end) { document.body.removeChild(end); }
+            if (holdButton) { document.body.removeChild(holdButton); }
+            if (endButton) { document.body.removeChild(endButton); }
+            hold = false;
+            quit = false;
         }
     }
 
@@ -699,33 +792,51 @@ function menus() {
                 if (mode == 1) {
                     context.fillStyle = 'white';
                     context.font = '540 25px Courier New';
-                    context.fillText("You have chosen the path of light", 300, 400);
-                    context.fillText("and have saved the universe.", 300, 450);
+                    let text = "By choosing the path of light, you have saved the universe.";
+                    context.fillText(text, 300, 400);
+                    text = "The demon Vortax has been vanquished.";
+                    context.fillText(text, 300, 450);
+                    text = "The world is safe once more.";
+                    context.fillText(text, 300, 500);
+                    context.textAlign = "center";
                 } else if (mode == 2) {
                     context.fillStyle = 'red';
                     context.font = '540 25px Courier New';
-                    context.fillText("You have chosen the path of darkness", 300, 400);
-                    context.fillText("and have conquered the universe.", 300, 450);
+                    let text = "By choosing the path of darkness, you have conquered the universe.";
+                    context.fillText(text, 300, 400);
+                    text = "The aura-giving tree has been destroyed.";
+                    context.fillText(text, 300, 450);
+                    text = "The world is yours to command.";
+                    context.fillText(text, 300, 500);
+                    context.textAlign = "center";
                 }
                 context.font = '600 50px Courier New';
-                context.fillText("You Won!", 300, 250);
+                context.fillText("You won!", 300, 250);
                 context.textAlign = "center";
             } else {
                 if (mode == 1) {
                     context.fillStyle = 'white';
-                    context.font = '540 25px Courier New';
-                    context.fillText("You had chosen the path of light", 300, 400);
-                    context.fillText("but the darkness has won.", 300, 450);
-                    context.fillText("The world has been destroyed.", 300, 500);
+                    context.font = '540 22px Courier New';
+                    let text = "You had chosen the path of light,";
+                    context.fillText(text, 300, 400);
+                    text = "but the demon Vortax proved too strong.";
+                    context.fillText(text, 300, 450);
+                    text = "The light has been vanquished.";
+                    context.fillText(text, 300, 500);
+                    context.textAlign = "center";
                 } else if (mode == 2) {
                     context.fillStyle = 'red';
-                    context.font = '540 25px Courier New';
-                    context.fillText("You had chosen the path of darkness", 300, 400);
-                    context.fillText("but the light proved too strong.", 300, 450);
-                    context.fillText("The darkness has been vanquished.", 300, 500);
+                    context.font = '540 20px Courier New';
+                    let text = "You had chosen the path of darkness,";
+                    context.fillText(text, 300, 400);
+                    text = "but the aura-giving tree proved too resilient.";
+                    context.fillText(text, 300, 450);
+                    text = "The darkness has been vanquished.";
+                    context.fillText(text, 300, 500);
+                    context.textAlign = "center";
                 }
                 context.font = '600 50px Courier New';
-                context.fillText("You Lost ...", 300, 250);
+                context.fillText("You lost ...", 300, 250);
                 context.textAlign = "center";
             }
         } else {
@@ -740,12 +851,103 @@ function menus() {
             context.textAlign = "center";
         }
 
-        
+            let playButton = document.createElement("playButton");
+            playButton = createButton("Retry", playButton, 650, 600, "red", "white");
+            document.body.appendChild(playButton);
+            playButton.onclick = function () {
+                score = 0;
+                heldBlock = [];
+                heldPoints = [];
+                modeScreen = true;
+                document.body.removeChild(playButton);
+                blocks = [];
+                squares = [];
+                currPoints = [];
+            }
+        context.font = '600 25px Courier New';
+        context.fillText("Your score: " + score, 300, 700);
+        context.textAlign = "center";
+    }
+
+    function aboutMenu(context) {
+        context.fillStyle = 'black';
+        context.fillRect(0, 0, canvas.width, canvas.height);
 
         context.fillStyle = 'white';
-        context.font = '600 25px Courier New';
-        context.fillText("Your score: " + score, 300, 650);
-        context.textAlign = "center";
+        context.font = '600 40px Courier New';
+        if (mode == 0) {
+            context.fillText("Classic Mode", 300, 100);
+            context.font = '400 15px Courier New';
+            let text = "In Classic Mode, you must clear rows of blocks to score points.";
+            context.fillText(text, 300, 150);
+            text = "The more rows you clear, the higher your score.";
+            context.fillText(text, 300, 200);
+            text = "The game ends when the blocks reach the top.";
+            context.fillText(text, 300, 250);
+            text = "Hold a block by clicking the Hold button.";
+            context.fillText(text, 300, 300);
+            text = "Holding a block will cost you some points.";
+            context.fillText(text, 300, 350);
+            text = "The game ends when the blocks reach the top.";
+            context.fillText(text, 300, 400);
+            text = "Good luck!";
+            context.fillText(text, 300, 550);
+            context.textAlign = "center";
+        } else if (mode == 1) {
+            context.fillText("Light Mode", 300, 100);
+            context.font = '400 15px Courier New';
+            let text = "In Light Mode, you must protect the universe from the darkness.";
+            context.fillText(text, 300, 150);
+            text = "The demon Vortax has invaded the universe.";
+            context.fillText(text, 300, 200);
+            text = "Defeat him by clearing rows of blocks.";
+            context.fillText(text, 300, 250);
+            text = "The more rows you clear, the more health he loses.";
+            context.fillText(text, 300, 300);
+            text = "The game ends when Vortax's health reaches 0.";
+            context.fillText(text, 300, 350);
+            text = "Hold a block by clicking the Hold button.";
+            context.fillText(text, 300, 400);
+            text = "Holding a block will increase Vortax's health by a small amount.";
+            context.fillText(text, 300, 450);
+            text = "Good luck!";
+            context.fillText(text, 300, 550);
+            text = "The fate of the universe is in your hands.";
+            context.fillText(text, 300, 600);
+            context.textAlign = "center";
+        } else if (mode == 2) {
+            context.fillText("Dark Mode", 300, 100);
+            context.font = '400 15px Courier New';
+            let text = "In Dark Mode, you must conquer the universe with darkness.";
+            context.fillText(text, 300, 150);
+            text = "The aura-giving tree is the last bastion of light.";
+            context.fillText(text, 300, 200);
+            text = "Destroy it by clearing rows of blocks.";
+            context.fillText(text, 300, 250);
+            text = "The more rows you clear, the more aura the tree loses.";
+            context.fillText(text, 300, 300);
+            text = "The game ends when the tree's aura reaches 0.";
+            context.fillText(text, 300, 350);
+            text = "Hold a block by clicking the Hold button.";
+            context.fillText(text, 300, 400);
+            text = "Holding a block will increase the tree's aura by a small amount.";
+            context.fillText(text, 300, 450);
+            text = "Good luck!";
+            context.fillText(text, 300, 550);
+            text = "You are the harbinger of darkness.";
+            context.fillText(text, 300, 600);
+            context.textAlign = "center";
+        }
+        let continueButton = document.createElement("continueButton");
+        continueButton = createButton("Continue", continueButton, 650, 700, "red", "white");
+        document.body.appendChild(continueButton);
+        continueButton.onclick = function () {
+            gameScreen = true;
+            aboutScreen = false;
+            document.body.removeChild(continueButton);
+            pushBlock();
+            game();
+        }
     }
 
     function createButton(text, button, left, top, bgColor, textColor) {
@@ -773,9 +975,13 @@ function menus() {
     } else if (modeScreen) {
         modeScreen = false;
         modeMenu(context);
+    } else if (aboutScreen) {
+        aboutScreen = false;
+        aboutMenu(context);
     } else if (gameScreen) {
         gameplayMenu(context);
     } else if (endScreen) {
+        endScreen = false;
         endMenu(context);
     }
     window.requestAnimationFrame(menus);
