@@ -505,7 +505,6 @@ function game() {
             drawBlock(context, c.x, c.y);
         }
         for (let k = 0; k < heldPoints.length; k++) {
-            debugger;
             let h = heldPoints[k];
             let canvas2 = /** @type {HTMLCanvasElement} */ (document.getElementById("myCanvas2"));
             let context2 = canvas2.getContext('2d');
