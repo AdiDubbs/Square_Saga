@@ -1,19 +1,526 @@
+<!--
+  Square Saga - A Tetris-like Game
+  =================================
+
+  This is the main HTML file for Square Saga, a block-falling puzzle game
+  with multiple game modes including Classic, Light, and Dark themes.
+
+  Features:
+  - Three distinct game modes with different visual themes
+  - Hold functionality for blocks
+  - Score tracking and health/aura systems
+  - Responsive UI with modern styling
+  - Canvas-based game rendering
+
+  File Structure:
+  - game.html: Main HTML structure and styling
+  - game.js: Core game logic and rendering
+  - ui.js: User interface management and screen transitions
+
+  Author: [Your Name]
+  Version: 1.0
+  Date: [Current Date]
+-->
+
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <title>Game Project</title>
+<html>
+  <head>
+    <title>Square Saga</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Import Google Fonts for enhanced typography -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700;900&family=Orbitron:wght@400;700;900&display=swap"
+      rel="stylesheet"
+    />
     <style>
-        canvas {
-            border: 1px solid black;
-        }
-        canvas#myCanvas2 {
-            border: 10px solid blue;
-        }
+      /* Global CSS Reset */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      /* Main body styling with gradient background */
+      body {
+        font-family: "Exo 2", sans-serif;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        overflow: hidden;
+      }
+
+      /* Main game container with flexbox layout */
+      .game-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        gap: 20px;
+      }
+
+      /* Game board canvas styling */
+      .game-board {
+        border: 3px solid #333;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
+
+      /* UI panel container for menus and game info */
+      .ui-panel {
+        width: 800px;
+        height: 800px;
+        background: rgba(0, 0, 0, 0.8);
+        border-radius: 10px;
+        padding: 40px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      }
+
+      /* Menu screen layout with centered content */
+      .menu-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        text-align: center;
+      }
+
+      /* Utility class to hide elements */
+      .hidden {
+        display: none !important;
+      }
+
+      /* Main game title with special styling */
+      .game-title {
+        font-family: "Orbitron", monospace;
+        font-size: 4.5rem;
+        font-weight: 900;
+        margin-bottom: 20px;
+        text-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+      }
+
+      /* Special styling for "Saga" part of title */
+      .game-title .saga {
+        color: #ff4444;
+        text-shadow: 0 0 20px rgba(255, 68, 68, 0.8);
+      }
+
+      /* Subtitle text styling */
+      .subtitle {
+        font-size: 1.4rem;
+        margin-bottom: 50px;
+        opacity: 0.8;
+        line-height: 1.6;
+        max-width: 600px;
+      }
+
+      /* Standard button styling with gradient and hover effects */
+      .game-button {
+        background: linear-gradient(145deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 20px;
+        padding: 18px 40px;
+        color: white;
+        font-family: "Exo 2", sans-serif;
+        font-size: 1.3rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+        margin: 10px;
+        min-width: 160px;
+      }
+
+      /* Button hover effect with lift animation */
+      .game-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+      }
+
+      /* Button active state */
+      .game-button:active {
+        transform: translateY(0);
+      }
+
+      /* Container for mode selection buttons */
+      .mode-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        margin-top: 40px;
+        width: 100%;
+        max-width: 400px;
+      }
+
+      /* Mode selection button styling */
+      .mode-btn {
+        background: linear-gradient(145deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        border-radius: 15px;
+        padding: 18px 40px;
+        color: white;
+        font-family: "Exo 2", sans-serif;
+        font-size: 1.2rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        transition: all 0.3s ease;
+        min-width: 200px;
+      }
+
+      /* Light mode button styling */
+      .mode-btn.light {
+        background: linear-gradient(145deg, #ffffff 0%, #f0f0f0 100%);
+        color: #333;
+      }
+
+      /* Dark mode button styling */
+      .mode-btn.dark {
+        background: linear-gradient(145deg, #333333 0%, #666666 100%);
+        color: white;
+      }
+
+      /* Classic mode button styling */
+      .mode-btn.classic {
+        background: linear-gradient(145deg, #4facfe 0%, #00f2fe 100%);
+        color: white;
+      }
+
+      /* Mode button hover effect */
+      .mode-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+      }
+
+      /* Narrative text styling for mode descriptions */
+      .narrative-text {
+        font-size: 1.1rem;
+        line-height: 1.7;
+        margin-bottom: 40px;
+        opacity: 0.9;
+        max-width: 700px;
+        text-align: center;
+      }
+
+      /* Instructions text styling */
+      .instructions {
+        font-size: 1rem;
+        line-height: 1.6;
+        margin-bottom: 30px;
+        opacity: 0.8;
+        max-width: 700px;
+        text-align: center;
+      }
+
+      /* Score display styling with large, prominent text */
+      .score-display {
+        font-family: "Exo 2", sans-serif;
+        font-size: 3rem;
+        font-weight: 700;
+        margin: 30px 0;
+        text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+      }
+
+      /* Health bar container styling */
+      .health-bar {
+        width: 100%;
+        height: 30px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 15px;
+        overflow: hidden;
+        margin: 15px 0;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+      }
+
+      /* Health bar fill styling with gradient */
+      .health-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #ff4444, #ff6666);
+        transition: width 0.3s ease;
+        border-radius: 13px;
+      }
+
+      /* Game controls container */
+      .game-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-top: 20px;
+        width: 100%;
+        max-width: 300px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      /* End game message styling */
+      .end-message {
+        font-family: "Exo 2", sans-serif;
+        font-size: 2rem;
+        font-weight: 700;
+        margin: 30px 0;
+        text-align: center;
+      }
+
+      /* Victory message styling with green color */
+      .victory {
+        color: #4caf50;
+        text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+      }
+
+      /* Defeat message styling with red color */
+      .defeat {
+        color: #f44336;
+        text-shadow: 0 0 10px rgba(244, 67, 54, 0.5);
+      }
     </style>
-</head>
-<body>
-    <canvas id="myCanvas" width="400" height="800"></canvas>
-    <canvas id="myCanvas2" width="600" height="780"></canvas>
-    <script src="game.js" type="module" defer></script>
-</body>
+  </head>
+  <body>
+    <!-- Main game container -->
+    <div class="game-container">
+      <!-- Game Board Canvas - Main game area -->
+      <canvas
+        id="myCanvas"
+        class="game-board"
+        width="400"
+        height="800"
+      ></canvas>
+
+      <!-- UI Panel - Contains all menus and game information -->
+      <div class="ui-panel">
+        <!-- Start Menu - Initial welcome screen -->
+        <div id="start-menu" class="menu-screen">
+          <h1 class="game-title">Square <span class="saga">Saga</span></h1>
+          <p class="subtitle">An epic blocky tale of light and darkness</p>
+          <button class="game-button" onclick="modeScreen = true;">
+            Begin Your Journey
+          </button>
+        </div>
+
+        <!-- Mode Selection Menu - Choose game mode -->
+        <div id="mode-menu" class="menu-screen hidden">
+          <h2 style="margin-bottom: 20px; font-size: 2rem">
+            Choose Your Destiny
+          </h2>
+          <div class="narrative-text">
+            In a realm where cosmic forces clash, you stand at the crossroads of
+            destiny. The ancient battle between light and darkness rages on, and
+            your choice will shape the fate of worlds.
+            <br /><br />
+            Will you embrace the radiant path of justice and protect the
+            innocent? Or will you harness the shadows and seek ultimate power?
+            Perhaps you'll walk the timeless path of balance.
+            <br /><br />
+            Your decision echoes through the cosmos. Choose wisely, for the
+            universe awaits its champion...
+          </div>
+          <div class="mode-buttons">
+            <button class="mode-btn light" onclick="selectMode(1)">
+              Light
+            </button>
+            <button class="mode-btn dark" onclick="selectMode(2)">Dark</button>
+            <button class="mode-btn classic" onclick="selectMode(0)">
+              Classic
+            </button>
+          </div>
+        </div>
+
+        <!-- About Screen - Instructions for selected mode -->
+        <div id="about-menu" class="menu-screen hidden">
+          <h2 id="about-title" style="margin-bottom: 10px; font-size: 2rem">
+            Mode Instructions
+          </h2>
+          <div id="about-content" class="instructions" style="font-size: 1rem">
+            <!-- Content will be populated by JavaScript -->
+          </div>
+          <button
+            class="game-button"
+            onclick="gameScreen = true; aboutScreen = false; gameplayUIShown = false;"
+          >
+            Enter the Battle
+          </button>
+        </div>
+
+        <!-- Gameplay UI - Active game interface -->
+        <div id="gameplay-ui" class="menu-screen hidden">
+          <!-- Top section: Mode and Score -->
+          <div style="text-align: center; margin-bottom: 30px">
+            <h2 id="game-title" style="margin-bottom: 15px; font-size: 2rem">
+              Game Mode
+            </h2>
+            <div id="score-section">
+              <div
+                class="score-display"
+                id="score-display"
+                style="font-size: 3.5rem; margin: 10px 0; text-align: center"
+              >
+                0
+              </div>
+              <div
+                class="health-bar"
+                id="health-bar"
+                style="
+                  height: 30px;
+                  border-radius: 15px;
+                  max-width: 300px;
+                  margin: 0 auto;
+                "
+              >
+                <div class="health-fill" id="health-fill"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Middle section: Two columns for character and hold -->
+          <div
+            style="
+              display: flex;
+              gap: 40px;
+              margin-bottom: 30px;
+              flex: 1;
+              min-height: 300px;
+            "
+          >
+            <!-- Left column: Character -->
+            <div
+              style="
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+              "
+            >
+              <!-- Character Image Section - Shows monster or tree based on mode -->
+              <div
+                id="character-section"
+                style="text-align: center; display: none; width: 100%"
+              >
+                <div
+                  id="character-container"
+                  style="
+                    width: 240px;
+                    height: 240px;
+                    margin: 0 auto;
+                    border-radius: 30px;
+                    overflow: hidden;
+                    box-shadow: 0 0 25px rgba(0, 0, 0, 0.5);
+                    border: 3px solid rgba(255, 255, 255, 0.1);
+                  "
+                >
+                  <img
+                    id="character-image"
+                    src=""
+                    alt="Character"
+                    style="width: 100%; height: 100%; object-fit: cover"
+                  />
+                </div>
+                <div
+                  id="character-name"
+                  style="
+                    margin-top: 20px;
+                    font-size: 1.5rem;
+                    font-weight: 700;
+                    text-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+                    letter-spacing: 1px;
+                  "
+                ></div>
+              </div>
+            </div>
+
+            <!-- Right column: Hold preview -->
+            <div
+              style="
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+              "
+            >
+              <!-- Hold Preview Section - Shows held block -->
+              <div
+                id="hold-preview-section"
+                style="text-align: center; width: 100%"
+              >
+                <canvas
+                  id="hold-preview"
+                  width="240"
+                  height="240"
+                  style="
+                    border: 4px solid #00bfff;
+                    border-radius: 30px;
+                    background: rgba(0, 0, 0, 0.6);
+                    box-shadow: 0 0 20px rgba(0, 191, 255, 0.5);
+                    margin: 0 auto;
+                  "
+                ></canvas>
+                <h3
+                  style="
+                    margin-top: 20px;
+                    font-size: 1.4rem;
+                    color: #00bfff;
+                    text-shadow: 0 0 10px rgba(0, 191, 255, 0.7);
+                    font-weight: 600;
+                  "
+                >
+                  Held Block
+                </h3>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom section: Buttons in columns -->
+          <div style="display: flex; gap: 40px; justify-content: center">
+            <div style="flex: 1; max-width: 200px">
+              <button
+                class="game-button"
+                id="hold-button"
+                onclick="holdBlock()"
+                style="
+                  font-size: 1.4rem;
+                  padding: 20px 40px;
+                  border-radius: 25px;
+                  width: 100%;
+                "
+              >
+                Hold
+              </button>
+            </div>
+            <div style="flex: 1; max-width: 200px">
+              <button
+                class="game-button"
+                onclick="quit = true;"
+                style="
+                  font-size: 1.4rem;
+                  padding: 20px 40px;
+                  border-radius: 25px;
+                  width: 100%;
+                "
+              >
+                Surrender
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- End Screen - Game over display -->
+        <div id="end-menu" class="menu-screen hidden">
+          <h2 id="end-title" style="margin-bottom: 10px; font-size: 2rem">
+            Game Over
+          </h2>
+          <div id="end-message" class="end-message"></div>
+          <div id="end-description" class="instructions"></div>
+          <div class="score-display" id="final-score">Score: 0</div>
+          <button
+            class="game-button"
+            onclick="score = 0; heldBlock = null; heldPoints = []; blocks = []; squares = []; currPoints = []; modeScreen = true;"
+          >
+            Fight Again
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Load JavaScript files -->
+    <script src="game.js"></script>
+    <script src="ui.js"></script>
+  </body>
 </html>
