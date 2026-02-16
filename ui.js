@@ -1,67 +1,119 @@
 // Screen state management
-let startScreen = true;
 let modeScreen = false;
 let gameScreen = false;
 let endScreen = false;
-let instructionScreen = false;
 let aboutScreen = false;
 let gameplayUIShown = false;
+const MENU_TRANSITION_MS = 220;
+const MENU_IDS = ["mode-menu", "about-menu", "gameplay-ui", "end-menu"];
+const OBJECTIVE_SCORE = typeof MODE_OBJECTIVE === "number" ? MODE_OBJECTIVE : 2000;
+let activeMenuId = null;
+let menuTransitionToken = 0;
 
-// Screen management functions
-function showStartMenu() {
-  hideAllMenus();
-  document.getElementById("start-menu").classList.remove("hidden");
+function showMenu(menuId) {
+  if (activeMenuId === menuId) return;
+
+  const incoming = document.getElementById(menuId);
+  if (!incoming) return;
+
+  const transitionToken = ++menuTransitionToken;
+  const outgoing = activeMenuId ? document.getElementById(activeMenuId) : null;
+
+  incoming.classList.remove("hidden", "menu-leave");
+  incoming.classList.add("menu-screen", "menu-enter");
+
+  // Force style application before toggling to active for smooth transition.
+  incoming.offsetHeight;
+
+  requestAnimationFrame(() => {
+    if (transitionToken !== menuTransitionToken) return;
+    incoming.classList.add("menu-active");
+    incoming.classList.remove("menu-enter");
+  });
+
+  if (outgoing && outgoing !== incoming) {
+    outgoing.classList.remove("menu-active", "menu-enter");
+    outgoing.classList.add("menu-leave");
+
+    window.setTimeout(() => {
+      if (!outgoing.classList.contains("menu-active")) {
+        outgoing.classList.remove("menu-leave");
+        outgoing.classList.add("hidden");
+      }
+    }, MENU_TRANSITION_MS);
+  }
+
+  activeMenuId = menuId;
 }
 
 function showModeMenu() {
-  hideAllMenus();
-  document.getElementById("mode-menu").classList.remove("hidden");
+  showMenu("mode-menu");
 }
 
 function showAboutMenu() {
-  hideAllMenus();
-  document.getElementById("about-menu").classList.remove("hidden");
+  showMenu("about-menu");
 
   // Populate about content based on mode
   const aboutTitle = document.getElementById("about-title");
-  const aboutContent = document.getElementById("about-content");
+  const aboutGoalControls = document.getElementById("about-goal-controls");
+  const aboutModeRules = document.getElementById("about-mode-rules");
 
   if (mode === 0) {
     aboutTitle.textContent = "Classic Mode";
-    aboutContent.innerHTML = `
-            Welcome to the timeless challenge of Classic Mode!<br><br>
-            Clear complete rows of blocks to earn points and prevent the stack from reaching the top.<br><br>
-            Each row cleared grants points, with bonus points for clearing multiple rows at once.<br><br>
-            Use the Hold feature strategically - store a piece for later, but beware the point penalty.<br><br>
-            The game ends when blocks reach the top of the play area.<br><br>
-            Can you achieve the highest score and master the falling blocks?
-        `;
+    aboutGoalControls.innerHTML = `
+      <ul>
+        <li>In the old halls of the Grid, only patience and precision are remembered.</li>
+        <li>Every falling shape is a trial, and every clean stack is a mark of mastery.</li>
+        <li>No armies, no gods, no prophecy. Just you and the endless descent.</li>
+      </ul>
+    `;
+    aboutModeRules.innerHTML = `
+      <ul>
+        <li>Clear full horizontal lines to score points and create space.</li>
+        <li>Clear multiple lines at once for higher line-clear rewards.</li>
+        <li>Using Hold costs points, so use it when it improves your board.</li>
+        <li>The game ends when blocks reach the top of the board.</li>
+      </ul>
+    `;
   } else if (mode === 1) {
     aboutTitle.textContent = "Light Mode";
-    aboutContent.innerHTML = `
-            The forces of darkness have unleashed the ancient demon Vortax upon the universe!<br><br>
-            As a champion of light, you must clear rows of blocks to weaken this malevolent entity.<br><br>
-            Each row cleared reduces Vortax's health, bringing you closer to victory.<br><br>
-            Use the Hold feature wisely - while it gives you tactical advantage, it also grants Vortax a small amount of healing.<br><br>
-            Victory is achieved when Vortax's health reaches zero.<br><br>
-            The fate of countless worlds rests upon your shoulders. Will you be the universe's salvation?
-        `;
+    aboutGoalControls.innerHTML = `
+      <ul>
+        <li>Vortax has risen from the shadowed deep and scorched the borders of the realm.</li>
+        <li>You stand as the last champion of light, holding the line with will and discipline.</li>
+        <li>Each clean formation is a strike against darkness in an unwinnable war made winnable.</li>
+      </ul>
+    `;
+    aboutModeRules.innerHTML = `
+      <ul>
+        <li>Play by standard line-clear rules: clear full rows to score and keep the board open.</li>
+        <li>Each line clear also reduces Vortax's health; win by reducing it to zero.</li>
+        <li>Using Hold restores a small amount of Vortax's health in exchange for better piece control.</li>
+        <li>You lose if the stack reaches the top before Vortax is defeated.</li>
+      </ul>
+    `;
   } else if (mode === 2) {
     aboutTitle.textContent = "Dark Mode";
-    aboutContent.innerHTML = `
-            The ancient Aura-Giving Tree stands as the final barrier between you and ultimate dominion!<br><br>
-            As a master of shadows, you must clear rows of blocks to drain the tree's life-giving aura.<br><br>
-            Each row cleared weakens the tree's protective aura, bringing you closer to total conquest.<br><br>
-            Use the Hold feature strategically - while it provides tactical advantage, it also restores a small amount of the tree's aura.<br><br>
-            Victory is achieved when the tree's aura is completely depleted.<br><br>
-            The universe shall bow before the power of darkness. Will you be its conqueror?
-        `;
+    aboutGoalControls.innerHTML = `
+      <ul>
+        <li>The Sacred Aura-Giving Tree is the final bastion of the old light.</li>
+        <li>You march beneath the banner of shadow, seeking to extinguish its ancient radiance.</li>
+        <li>Order, tempo, and ruthless intent decide who writes the last chapter.</li>
+      </ul>
+    `;
+    aboutModeRules.innerHTML = `
+      <ul>
+        <li>Standard line-clear rules apply: complete full rows to score and maintain space.</li>
+        <li>Each line clear also lowers the tree's aura; win by draining aura to zero.</li>
+        <li>Using Hold restores a portion of aura in exchange for tactical positioning.</li>
+        <li>You lose if the board tops out before the tree's aura is depleted.</li>
+      </ul>
+    `;
   }
 }
 
 function showGameplayUI() {
-  hideAllMenus();
-  document.getElementById("gameplay-ui").classList.remove("hidden");
+  showMenu("gameplay-ui");
 
   // Reset hold button to initial state
   const holdButton = document.getElementById("hold-button");
@@ -73,83 +125,85 @@ function showGameplayUI() {
 }
 
 function showEndMenu() {
-  hideAllMenus();
-  document.getElementById("end-menu").classList.remove("hidden");
+  showMenu("end-menu");
 
   const endTitle = document.getElementById("end-title");
   const endMessage = document.getElementById("end-message");
+  const endSummary = document.getElementById("end-summary");
   const endDescription = document.getElementById("end-description");
   const finalScore = document.getElementById("final-score");
 
-  finalScore.textContent = `Score: ${score}`;
+  finalScore.textContent = `Score ${score}`;
 
   if (mode !== 0) {
-    if (score > 2000) {
-      endTitle.textContent = "Victory!";
-      endMessage.textContent = "You won!";
-      endMessage.className = "end-message victory";
+    if (score >= OBJECTIVE_SCORE) {
+      endTitle.textContent = "Battle Results";
+      endMessage.textContent = "Victory";
+      endMessage.className = "result-badge victory";
+      endSummary.textContent = "Great run with solid control from start to finish.";
 
       if (mode === 1) {
         endDescription.innerHTML = `
-                    Through your unwavering dedication to the light, you have achieved the impossible!<br><br>
-                    The ancient demon Vortax has been banished back to the depths of darkness.<br><br>
-                    The universe rejoices as peace and harmony are restored across all realms.
+                    You kept the board under control and beat Vortax before things got out of hand, managing your holds well and staying calm in the tight moments near the end.
                 `;
       } else if (mode === 2) {
         endDescription.innerHTML = `
-                    With the power of darkness coursing through your veins, you have achieved ultimate conquest!<br><br>
-                    The sacred Aura-Giving Tree has fallen, its light extinguished forever.<br><br>
-                    The universe now bows before your might, and all realms shall know the power of shadows.
+                    You kept steady pressure all game and drained the tree's aura at the right time, turning a close match into a clean finish with smart piece placement.
                 `;
       }
     } else {
-      endTitle.textContent = "Defeat";
-      endMessage.textContent = "You lost...";
-      endMessage.className = "end-message defeat";
+      endTitle.textContent = "Battle Results";
+      endMessage.textContent = "Defeat";
+      endMessage.className = "result-badge defeat";
+      endSummary.textContent = "You were close, but couldn't finish the objective this time.";
 
       if (mode === 1) {
         endDescription.innerHTML = `
-                    Though you fought valiantly for the light, the ancient demon Vortax proved too powerful.<br><br>
-                    His malevolent presence now spreads across the universe, extinguishing hope wherever it goes.<br><br>
-                    The forces of darkness have claimed another victory in their eternal war.
+                    You were close, but couldn't defeat Vortax before the stack reached the top, and a few difficult piece drops in the final stretch made the difference.
                 `;
       } else if (mode === 2) {
         endDescription.innerHTML = `
-                    Despite your mastery of shadows, the sacred Aura-Giving Tree's resilience proved unbreakable.<br><br>
-                    Its ancient power continues to protect the universe, keeping the forces of darkness at bay.<br><br>
-                    The light endures, and your conquest remains incomplete.
+                    You were close, but couldn't destroy the Aura-Giving Tree before the board filled up, and the last few turns left too little space to recover.
                 `;
       }
     }
   } else {
-    endTitle.textContent = "Classic Challenge Complete";
-    endMessage.textContent = "Your block-mastering journey has ended";
-    endMessage.className = "end-message";
+    endTitle.textContent = "Classic Results";
+    endMessage.textContent = "Run Complete";
+    endMessage.className = "result-badge";
+    endSummary.textContent = score >= 1200
+      ? "Excellent pace and clean stacking throughout the run."
+      : "Solid attempt, and a few better line clears will raise your score quickly.";
     endDescription.innerHTML = `
-                    You've faced the timeless challenge of falling blocks and emerged victorious!<br><br>
-                    Your strategic thinking and quick reflexes have proven your mastery.<br><br>
-                    Ready to push your skills even further?
+                    Nice effort overall, and you're close to a much higher score if you keep the middle open more often and look for a few extra multi-line clears when the board is safe.
                 `;
   }
 }
 
 function hideAllMenus() {
-  const menus = [
-    "start-menu",
-    "mode-menu",
-    "about-menu",
-    "gameplay-ui",
-    "end-menu",
-  ];
-  menus.forEach((menuId) => {
+  MENU_IDS.forEach((menuId) => {
     document.getElementById(menuId).classList.add("hidden");
+    document.getElementById(menuId).classList.remove("menu-active", "menu-enter", "menu-leave");
   });
+  activeMenuId = null;
+}
+
+function applyModeTheme() {
+  document.body.classList.remove("mode-classic", "mode-light", "mode-dark");
+  if (mode === 0) {
+    document.body.classList.add("mode-classic");
+  } else if (mode === 1) {
+    document.body.classList.add("mode-light");
+  } else if (mode === 2) {
+    document.body.classList.add("mode-dark");
+  }
 }
 
 // Game functions
 function selectMode(selectedMode) {
   mode = selectedMode;
   aboutScreen = true;
+  applyModeTheme();
   showAboutMenu();
 }
 
@@ -161,10 +215,11 @@ function startGame() {
   hold = false;
   heldBlock = null;
   heldPoints = [];
+  currBlock = null;
 
   showGameplayUI();
   pushBlock();
-  game();
+  startGameLoop();
 }
 
 function endGame() {
@@ -179,107 +234,146 @@ function restartGame() {
   blocks = [];
   squares = [];
   currPoints = [];
+  currBlock = null;
   gameplayUIShown = false;
+  stopGameLoop();
+  modeScreen = true;
+  showModeMenu();
+}
+
+function resetRunState() {
+  score = 0;
+  heldBlock = null;
+  heldPoints = [];
+  hold = false;
+  blocks = [];
+  squares = [];
+  currPoints = [];
+  currBlock = null;
+  gameplayUIShown = false;
+  endScreen = false;
+  quit = false;
+  stopGameLoop();
+}
+
+function fightAgain() {
+  resetRunState();
+  gameScreen = true;
+  startGame();
+}
+
+function changeMode() {
+  resetRunState();
   modeScreen = true;
   showModeMenu();
 }
 
 function holdBlock() {
+  if (!gameScreen || !currBlock) {
+    return;
+  }
+
   const holdButton = document.getElementById("hold-button");
+  const holdFeedback = document.getElementById("hold-feedback");
+  score += HOLD_COST;
 
-  if (hold) {
-    // Retrieve the held piece
-    currBlock = heldBlock;
-    currPoints = [...heldPoints]; // Create a copy to avoid reference issues
-    holdButton.textContent = "Hold";
-    heldBlock = null;
-    heldPoints = [];
-    hold = false;
-  } else {
-    // Store the current piece
-    hold = true;
+  if (!heldBlock) {
+    heldBlock = { ...currBlock };
+    heldBlock.rotation = 0;
     blocks.pop();
-    heldBlock = { ...currBlock }; // Create a copy of the block
-
-    // Recreate the points from the block data instead of copying currPoints
-    heldPoints = [];
-    createBlock(
-      heldBlock,
-      heldPoints,
-      heldBlock.type,
-      heldBlock.x,
-      heldBlock.y,
-      heldBlock.color,
-      heldBlock.rotation
-    );
-
-    holdButton.textContent = "Unhold";
-    score += HOLD_COST;
     pushBlock();
+  } else {
+    const swappedType = heldBlock.type;
+    heldBlock = { ...currBlock };
+    heldBlock.rotation = 0;
+    spawnBlockOfType(swappedType);
+  }
+
+  heldPoints = [];
+  createBlock(
+    heldBlock,
+    heldPoints,
+    heldBlock.type,
+    heldBlock.x,
+    heldBlock.y,
+    heldBlock.color,
+    heldBlock.rotation
+  );
+
+  hold = true;
+  if (holdButton) {
+    holdButton.textContent = "Hold";
+  }
+  if (holdFeedback) {
+    holdFeedback.classList.remove("show");
+    holdFeedback.offsetHeight;
+    holdFeedback.classList.add("show");
   }
 }
 
 function updateGameplayUI() {
   const gameTitle = document.getElementById("game-title");
-  const scoreDisplay = document.getElementById("score-display");
+  const objectiveLabel = document.getElementById("objective-label");
+  const objectiveValue = document.getElementById("objective-value");
+  const performanceLabel = document.getElementById("performance-label");
+  const performanceValue = document.getElementById("performance-value");
   const healthBar = document.getElementById("health-bar");
   const healthFill = document.getElementById("health-fill");
   const characterSection = document.getElementById("character-section");
   const characterImage = document.getElementById("character-image");
   const characterName = document.getElementById("character-name");
-  const characterContainer = document.getElementById("character-container");
+
+  applyModeTheme();
 
   if (mode === 0) {
     // Classic Mode
     gameTitle.textContent = "Classic Mode";
-    scoreDisplay.textContent = score;
+    objectiveLabel.textContent = "Objective";
+    objectiveValue.textContent = "Survive";
+    performanceLabel.textContent = "Score";
+    performanceValue.textContent = score;
     healthBar.style.display = "none";
     characterSection.style.display = "none";
   } else if (mode === 1) {
     // Light Mode - Show monster (enemy)
     gameTitle.textContent = "Light Mode";
-    const health = 2000 - score;
-    scoreDisplay.textContent = health;
+    objectiveLabel.textContent = "Enemy Health";
+    const health = Math.max(0, Math.min(OBJECTIVE_SCORE, OBJECTIVE_SCORE - score));
+    const healthPercent = (health / OBJECTIVE_SCORE) * 100;
+    objectiveValue.textContent = health;
+    performanceLabel.textContent = "Score";
+    performanceValue.textContent = score;
     healthBar.style.display = "block";
-    healthFill.style.width = `${(health / 2000) * 100}%`;
+    healthFill.style.width = `${healthPercent}%`;
 
     // Show monster character
     characterSection.style.display = "block";
     characterImage.src = "images/monster_saga.png";
     characterImage.alt = "Demon Vortax";
     characterName.textContent = "Ancient Demon Vortax";
-    characterName.style.color = "#ff4444";
-
-    // Set border color to match character theme (red for demon)
-    characterContainer.style.border = "3px solid #ff4444";
-    characterContainer.style.boxShadow = "0 0 25px rgba(255, 68, 68, 0.5)";
   } else if (mode === 2) {
     // Dark Mode - Show tree (enemy)
     gameTitle.textContent = "Dark Mode";
-    const aura = 2000 - score;
-    scoreDisplay.textContent = aura;
+    objectiveLabel.textContent = "Tree Aura";
+    const aura = Math.max(0, Math.min(OBJECTIVE_SCORE, OBJECTIVE_SCORE - score));
+    const auraPercent = (aura / OBJECTIVE_SCORE) * 100;
+    objectiveValue.textContent = aura;
+    performanceLabel.textContent = "Score";
+    performanceValue.textContent = score;
     healthBar.style.display = "block";
-    healthFill.style.width = `${(aura / 2000) * 100}%`;
+    healthFill.style.width = `${auraPercent}%`;
 
     // Show tree character
     characterSection.style.display = "block";
     characterImage.src = "images/tree_saga.png";
     characterImage.alt = "Aura-Giving Tree";
     characterName.textContent = "Sacred Aura-Giving Tree";
-    characterName.style.color = "#4caf50";
-
-    // Set border color to match character theme (green for tree)
-    characterContainer.style.border = "3px solid #4caf50";
-    characterContainer.style.boxShadow = "0 0 25px rgba(76, 175, 80, 0.5)";
   }
 }
 
 // Main menu system
 function menus() {
-  if (startScreen) {
-    startScreen = false;
-    showStartMenu();
-  } else if (modeScreen) {
+  if (modeScreen) {
     modeScreen = false;
     showModeMenu();
   } else if (aboutScreen) {
@@ -295,7 +389,7 @@ function menus() {
     // Update the UI continuously (score, health bar, etc.)
     updateGameplayUI();
 
-    if (score >= 2000 && mode !== 0) {
+    if (score >= OBJECTIVE_SCORE && mode !== 0) {
       quit = true;
     }
 
@@ -308,11 +402,6 @@ function menus() {
       showEndMenu();
     }
 
-    // Start the game if it hasn't been started yet
-    if (!blocks.length) {
-      pushBlock();
-      game();
-    }
   } else if (endScreen) {
     endScreen = false;
     showEndMenu();
@@ -322,4 +411,10 @@ function menus() {
 }
 
 // Initialize the UI
+applyModeTheme();
+const initialMenu = document.getElementById("mode-menu");
+if (initialMenu) {
+  initialMenu.classList.add("menu-active");
+  activeMenuId = "mode-menu";
+}
 menus();

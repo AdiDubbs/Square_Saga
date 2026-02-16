@@ -12,28 +12,21 @@ Square Saga is a Tetris-like puzzle game that combines classic gameplay mechanic
 
 - **Classic Tetris Mechanics**: Familiar block-falling, rotation, and line-clearing gameplay
 - **10 Unique Block Types**: Including traditional Tetris pieces plus custom variations
-- **Smooth Controls**: Responsive keyboard controls for movement and rotation
+- **Smooth Controls**: Responsive keyboard controls for movement, rotation, and soft drop
 
 ### Visual & Audio
 
-- **Three Visual Themes**: Classic, Light, and Dark modes with distinct aesthetics
-- **Modern UI Design**: Clean, responsive interface with smooth animations
-- **Gradient Backgrounds**: Dynamic backgrounds that change based on game mode
-- **Enhanced Typography**: Custom Google Fonts for improved readability
-
-### Advanced Features
-
+- **Three Modes**: Classic, Light, and Dark modes
+- **Modern UI Design**: Beautiful, modern interface with smooth animations
 - **Hold Block System**: Strategic block storage with visual preview and point cost
-- **Multiple Game Modes**: Three distinct experiences with unique narratives and mechanics
-- **Health/Aura Systems**: Themed health mechanics with dramatic storytelling
+- **Multiple Game Modes**: Three distinct experiences with unique narratives
 - **Character Sprites**: Visual enemies (Ancient Demon Vortax, Sacred Aura-Giving Tree)
-- **Enhanced UI**: Immersive descriptions and epic storytelling throughout
 
 ### Story & Lore
 
-- **Epic Cosmic Narrative**: Rich backstory about the eternal battle between light and darkness
+- **Epic Narrative**: Rich backstory about the eternal battle between light and darkness
 - **Character Context**: Players take on different roles as saviors, conquerors, or classic players based on mode selection
-- **Immersive Descriptions**: Enhanced text throughout the UI creates a more engaging gaming experience
+- **Immersive Descriptions**: Narrative text throughout the UI creates a more engaging gaming experience
 
 ## Game Modes
 
@@ -68,6 +61,7 @@ Square Saga is a Tetris-like puzzle game that combines classic gameplay mechanic
 
 - **← → Arrow Keys**: Move blocks left and right
 - **↑ Arrow Key**: Rotate blocks
+- **↓ Arrow Key**: Soft drop
 - **Hold Button**: Save current block for later use (shows as "Reserved Power")
 - **Surrender Button**: Quit current game
 
@@ -103,16 +97,13 @@ Square Saga is a Tetris-like puzzle game that combines classic gameplay mechanic
    ```
 
 2. **Open the game**:
-
    - Double-click `game.html` to open in your browser
    - Or serve the files using a local web server
 
 3. **Start playing**:
-
-   - Click "Begin Your Journey" to start
-   - Choose your destiny from the three game modes
-   - Read the epic instructions for your selected mode
-   - Enter the battle and begin your block-falling adventure!
+   - Choose a mode from the main menu
+   - Review the mode lore/rules screen
+   - Enter battle and begin your journey
 
 ### Local Development Server (Optional)
 
@@ -121,12 +112,6 @@ If you prefer to run a local server:
 ```bash
 # Using Python 3
 python -m http.server 8000
-
-# Using Node.js (if you have http-server installed)
-npx http-server
-
-# Using PHP
-php -S localhost:8000
 ```
 
 Then navigate to `http://localhost:8000` in your browser.
@@ -138,7 +123,7 @@ Then navigate to `http://localhost:8000` in your browser.
 - **Frontend**: Pure HTML5, CSS3, and JavaScript
 - **Rendering**: HTML5 Canvas for game graphics
 - **State Management**: JavaScript-based game state
-- **UI Framework**: Custom CSS with responsive design
+- **UI Framework**: Custom CSS
 
 ### File Structure
 
@@ -165,50 +150,27 @@ Square_Saga/
 #### `game.js`
 
 - Block generation and movement
-- Collision detection
+- Collision validation and overlap-safe placement checks
 - Line clearing logic
-- Canvas rendering
+- Canvas rendering with per-square outlines
 - Game loop management
 
 #### `ui.js`
 
 - Screen state management
-- Menu navigation with enhanced storytelling
-- Score and health display
-- Hold functionality (Reserved Power system)
-- Game mode selection with dramatic narratives
-- Victory/defeat messages with epic descriptions
+- Menu navigation and transitions (mode, about, gameplay, results)
+- Dual-metric HUD updates (objective + score)
+- Hold functionality and hold-penalty feedback
+- Game mode selection and rule content
+- Victory/defeat messaging and results screen content
 
 ### Technologies Used
 
 - **HTML5 Canvas**: Game rendering and graphics
 - **CSS3**: Styling, animations, and responsive design
 - **JavaScript (ES6+)**: Game logic and interactivity
-- **Google Fonts**: Typography (Exo 2, Orbitron)
-
-## Customization
-
-### Adding New Block Types
-
-1. Modify the `createBlock()` function in `game.js`
-2. Add new block definitions with rotation states
-3. Update the `pushBlock()` function to include new types
-
-### Modifying Game Modes
-
-1. Edit mode-specific logic in `ui.js`
-2. Update visual themes in `game.js`
-3. Modify scoring and win conditions
-
-### Styling Changes
-
-1. Edit CSS in `game.html`
-2. Modify color palettes in `game.js`
-3. Update fonts and animations
+- **Google Fonts**: Typography (Cinzel, Marcellus, Plus Jakarta Sans)
 
 ## Acknowledgments
 
-- **Tetris**: Original game concept by Alexey Pajitnov
-- **Google Fonts**: Typography resources
-- **HTML5 Canvas**: Graphics rendering technology
-- **Open Source Community**: Inspiration and support
+- **Tetris**: Original game concept by Alexey Pajitnov and the Tetris Company
