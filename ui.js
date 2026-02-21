@@ -348,7 +348,7 @@ function updateGameplayUI() {
 
     // Show monster character
     characterSection.style.display = "block";
-    characterImage.src = "images/monster_saga.png";
+    characterImage.src = "assets/monster_saga.png";
     characterImage.alt = "Demon Vortax";
     characterName.textContent = "Ancient Demon Vortax";
   } else if (mode === 2) {
@@ -365,7 +365,7 @@ function updateGameplayUI() {
 
     // Show tree character
     characterSection.style.display = "block";
-    characterImage.src = "images/tree_saga.png";
+    characterImage.src = "assets/tree_saga.png";
     characterImage.alt = "Aura-Giving Tree";
     characterName.textContent = "Sacred Aura-Giving Tree";
   }

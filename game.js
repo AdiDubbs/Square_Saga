@@ -178,6 +178,10 @@ function pushBlock() {
   const nextBlock = createSpawnBlock(type);
   blocks.push(nextBlock);
   currBlock = nextBlock;
+
+  if (!isValidBlockState(currBlock, currBlock.x, currBlock.y, currBlock.rotation)) {
+    quit = true;
+  }
 }
 
 function createSpawnBlock(type) {
@@ -238,6 +242,10 @@ function squaresOverlap(ax, ay, bx, by) {
   const bBottom = by;
 
   return aLeft < bRight && aRight > bLeft && aTop < bBottom && aBottom > bTop;
+}
+
+function hasToppedOut() {
+  return squares.some((square) => square.y <= BLOCK_SIZE);
 }
 
 function isValidBlockState(block, x, y, rotation) {
@@ -790,15 +798,17 @@ function game() {
   );
 
   if (currBlock.down) {
-    if (currBlock.topY <= 0) {
-      quit = true;
-    }
     score += BLOCK_BONUS;
     for (let i = 0; i < currPoints.length; i++) {
       squares.push(currPoints[i]);
     }
     currPoints = [];
-    pushBlock();
+
+    if (hasToppedOut()) {
+      quit = true;
+    } else {
+      pushBlock();
+    }
   } else {
     currPoints = [];
     currBlock.y += BLOCK_SPEED;
@@ -836,7 +846,7 @@ function game() {
     score += ROW_BONUS * rowsToClear.length;
   }
 
-  if (gameScreen) {
+  if (gameScreen && !quit) {
     window.requestAnimationFrame(game);
   } else {
     stopGameLoop();

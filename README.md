@@ -118,6 +118,20 @@ Then navigate to `http://localhost:8000` in your browser.
 
 ## Technical Details
 
+## Screenshots
+
+### Home Screen
+
+![Square Saga Home Screen](images/home_screen.png)
+
+### Gameplay Screen
+
+![Square Saga Gameplay Screen](images/game_screen.png)
+
+### End Screen
+
+![Square Saga End Screen](images/end_screen.png)
+
 ### Architecture
 
 - **Frontend**: Pure HTML5, CSS3, and JavaScript
@@ -132,7 +146,11 @@ Square_Saga/
 ├── game.html          # Main HTML file with UI structure
 ├── game.js            # Core game logic and rendering
 ├── ui.js              # User interface management
-├── images/            # Game assets
+├── images/            # UI screenshots and menu artwork
+│   ├── home_screen.png
+│   ├── game_screen.png
+│   └── end_screen.png
+├── assets/            # In-game character art
 │   ├── monster_saga.png    # Demon Vortax sprite for Light Mode
 │   └── tree_saga.png       # Aura-Giving Tree sprite for Dark Mode
 └── README.md          # This file
