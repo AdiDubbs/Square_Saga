@@ -1,7 +1,8 @@
 // @ts-check
 
 const BLOCK_SIZE = 40;
-const BLOCK_SPEED = 1;
+const FALL_SPEED = 60; // pixels per second
+const MAX_FRAME_TIME = 50; // ms
 const ROW_BONUS = 100;
 const BLOCK_BONUS = 20;
 const HOLD_COST = -50;
@@ -88,17 +89,26 @@ let currBlock,
 let score = 0;
 let mode = 0;
 let gameLoopRunning = false;
+let gameLoopFrame = null;
+let lastFrameTime = null;
+let fallProgress = 0;
 
 function startGameLoop() {
   if (gameLoopRunning) {
     return;
   }
   gameLoopRunning = true;
-  window.requestAnimationFrame(game);
+  lastFrameTime = null;
+  fallProgress = 0;
+  gameLoopFrame = window.requestAnimationFrame(game);
 }
 
 function stopGameLoop() {
   gameLoopRunning = false;
+  if (gameLoopFrame !== null) {
+    window.cancelAnimationFrame(gameLoopFrame);
+    gameLoopFrame = null;
+  }
 }
 
 window.addEventListener("keydown", function (event) {
@@ -707,7 +717,22 @@ function drawHoldPreview() {
   });
 }
 
-function game() {
+function game(timestamp) {
+  if (!gameLoopRunning) {
+    return;
+  }
+  if (!currBlock) {
+    stopGameLoop();
+    return;
+  }
+
+  const now = typeof timestamp === "number" ? timestamp : performance.now();
+  const dt = lastFrameTime === null ? 0 : Math.min(Math.max(now - lastFrameTime, 0), MAX_FRAME_TIME);
+  lastFrameTime = now;
+  fallProgress += (FALL_SPEED * dt) / 1000;
+  const step = Math.floor(fallProgress);
+  fallProgress -= step;
+
   function drawBoard(context, theme) {
     const palette = getModePalette();
     context.fillStyle = palette ? palette.boardFill : theme.boardTop;
@@ -797,7 +822,7 @@ function game() {
   currBlock.down = !isValidBlockState(
     currBlock,
     currBlock.x,
-    currBlock.y + BLOCK_SPEED,
+    currBlock.y + 1,
     currBlock.rotation
   );
 
@@ -808,50 +833,57 @@ function game() {
     }
     currPoints = [];
 
+    const rowsToClear = [];
+    for (let i = 1; i < 21; i++) {
+      const rowY = i * BLOCK_SIZE;
+      let rowCount = 0;
+      for (let j = 0; j < squares.length; j++) {
+        if (squares[j].y == rowY) {
+          rowCount += 1;
+        }
+      }
+      if (rowCount == 10) {
+        rowsToClear.push(rowY);
+      }
+    }
+
+    if (rowsToClear.length > 0) {
+      squares = squares.filter((s) => !rowsToClear.includes(s.y));
+
+      squares.forEach(function (s) {
+        let rowsBelow = 0;
+        for (let i = 0; i < rowsToClear.length; i++) {
+          if (rowsToClear[i] > s.y) {
+            rowsBelow += 1;
+          }
+        }
+        if (rowsBelow > 0) {
+          s.y += rowsBelow * BLOCK_SIZE;
+        }
+      });
+
+      score += ROW_BONUS * rowsToClear.length;
+    }
+
     if (hasToppedOut()) {
       quit = true;
     } else {
+      hold = false;
       pushBlock();
     }
   } else {
     currPoints = [];
-    currBlock.y += BLOCK_SPEED;
-  }
-
-  const rowsToClear = [];
-  for (let i = 1; i < 21; i++) {
-    const rowY = i * BLOCK_SIZE;
-    let rowCount = 0;
-    for (let j = 0; j < squares.length; j++) {
-      if (squares[j].y == rowY) {
-        rowCount += 1;
+    // Move one pixel at a time so the piece never skips past settled squares
+    for (let moved = 0; moved < step; moved++) {
+      if (!isValidBlockState(currBlock, currBlock.x, currBlock.y + 1, currBlock.rotation)) {
+        break;
       }
+      currBlock.y += 1;
     }
-    if (rowCount == 10) {
-      rowsToClear.push(rowY);
-    }
-  }
-
-  if (rowsToClear.length > 0) {
-    squares = squares.filter((s) => !rowsToClear.includes(s.y));
-
-    squares.forEach(function (s) {
-      let rowsBelow = 0;
-      for (let i = 0; i < rowsToClear.length; i++) {
-        if (rowsToClear[i] > s.y) {
-          rowsBelow += 1;
-        }
-      }
-      if (rowsBelow > 0) {
-        s.y += rowsBelow * BLOCK_SIZE;
-      }
-    });
-
-    score += ROW_BONUS * rowsToClear.length;
   }
 
   if (gameScreen && !quit) {
-    window.requestAnimationFrame(game);
+    gameLoopFrame = window.requestAnimationFrame(game);
   } else {
     stopGameLoop();
   }
