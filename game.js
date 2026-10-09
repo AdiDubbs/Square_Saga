@@ -194,8 +194,8 @@ function createSpawnBlock(type) {
   let bottomY = 0;
   let rot = 0;
   if (type == 1) {
-    // I-piece needs extra horizontal margin.
-    x = (Math.floor(Math.random() * 7) + 2) * BLOCK_SIZE;
+    // I-piece cells span x-80..x+40, so x stays in 80..320 after the offset below.
+    x = Math.floor(Math.random() * 7) * BLOCK_SIZE;
   } else if (type == 4 || type == 9) {
     x = Math.floor(Math.random() * 8) * BLOCK_SIZE;
   } else {
@@ -227,6 +227,10 @@ function spawnBlockOfType(type) {
     blocks[blocks.length - 1] = nextBlock;
   } else {
     blocks.push(nextBlock);
+  }
+
+  if (!isValidBlockState(currBlock, currBlock.x, currBlock.y, currBlock.rotation)) {
+    quit = true;
   }
 }
 

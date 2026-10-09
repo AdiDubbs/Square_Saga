@@ -275,6 +275,12 @@ function holdBlock() {
 
   const holdButton = document.getElementById("hold-button");
   const holdFeedback = document.getElementById("hold-feedback");
+  if (holdButton) {
+    holdButton.blur();
+  }
+  if (hold) {
+    return;
+  }
   score += HOLD_COST;
 
   if (!heldBlock) {
