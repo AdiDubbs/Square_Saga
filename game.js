@@ -3,9 +3,11 @@
 const BLOCK_SIZE = 40;
 const FALL_SPEED = 60; // pixels per second
 const MAX_FRAME_TIME = 50; // ms
-const ROW_BONUS = 100;
+// Points for clearing 0, 1, 2, 3 or 4 lines at once.
+const LINE_CLEAR_POINTS = [0, 100, 300, 500, 800];
 const BLOCK_BONUS = 20;
 const HOLD_COST = -50;
+const HOLD_HEAL = 50;
 const MODE_OBJECTIVE = 2000;
 const BOARD_WIDTH = 400;
 const BOARD_HEIGHT = 800;
@@ -87,6 +89,7 @@ let heldPoints = [];
 let currBlock,
   heldBlock = null;
 let score = 0;
+let enemyHealth = MODE_OBJECTIVE;
 let mode = 0;
 let gameLoopRunning = false;
 let gameLoopFrame = null;
@@ -194,28 +197,35 @@ function pushBlock() {
   }
 }
 
+function getSpawnXs(type) {
+  // Pivot x values (half-cell steps) where every rotation-0 cell sits on the grid inside the board.
+  const spawnXs = [];
+  for (let x = -BLOCK_SIZE * 2; x <= BOARD_WIDTH + BLOCK_SIZE * 2; x += BLOCK_SIZE / 2) {
+    const points = [];
+    createBlock({}, points, type, x, 0, 0, 0);
+    const fits = points.every(
+      (point) =>
+        point.x % BLOCK_SIZE === 0 &&
+        point.x >= 0 &&
+        point.x <= BOARD_WIDTH - BLOCK_SIZE
+    );
+    if (points.length > 0 && fits) {
+      spawnXs.push(x);
+    }
+  }
+  return spawnXs;
+}
+
 function createSpawnBlock(type) {
   let color = 0;
-  let x = 0;
   let y = 0;
   let rightX = 0;
   let leftX = 0;
   let topY = 0;
   let bottomY = 0;
   let rot = 0;
-  if (type == 1) {
-    // I-piece cells span x-80..x+40, so x stays in 80..320 after the offset below.
-    x = Math.floor(Math.random() * 7) * BLOCK_SIZE;
-  } else if (type == 4 || type == 9) {
-    x = Math.floor(Math.random() * 8) * BLOCK_SIZE;
-  } else {
-    x = Math.floor(Math.random() * 6) * (BLOCK_SIZE / 2);
-    while (x % 40 == 0) {
-      x = Math.floor(Math.random() * 6) * (BLOCK_SIZE / 2);
-    }
-  }
-  x += 40;
-  x += BLOCK_SIZE;
+  const spawnXs = getSpawnXs(type);
+  const x = spawnXs[Math.floor(Math.random() * spawnXs.length)];
   return {
     type: type,
     rotation: rot,
@@ -584,16 +594,16 @@ function createBlock(block, blockPoints, type, x, y, color, rot) {
       block.bottomY = y + 20;
     } else if (rot == 2) {
       blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 20;
+      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
+      block.leftX = x - 20;
+      block.rightX = x + 60;
       block.topY = y - 20;
       block.bottomY = y + 60;
     } else if (rot == 3) {
       blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
-      block.leftX = x - 20;
-      block.rightX = x + 60;
+      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
+      block.leftX = x - 60;
+      block.rightX = x + 20;
       block.topY = y - 20;
       block.bottomY = y + 60;
     }
@@ -719,6 +729,10 @@ function drawHoldPreview() {
 
 function game(timestamp) {
   if (!gameLoopRunning) {
+    return;
+  }
+  if (!gameScreen || quit) {
+    stopGameLoop();
     return;
   }
   if (!currBlock) {
@@ -862,10 +876,17 @@ function game(timestamp) {
         }
       });
 
-      score += ROW_BONUS * rowsToClear.length;
+      const linePoints = LINE_CLEAR_POINTS[Math.min(rowsToClear.length, LINE_CLEAR_POINTS.length - 1)];
+      score += linePoints;
+      // In Light and Dark modes only line clears damage the enemy.
+      if (mode !== 0) {
+        enemyHealth -= linePoints;
+      }
     }
 
-    if (hasToppedOut()) {
+    if (mode !== 0 && enemyHealth <= 0) {
+      quit = true;
+    } else if (hasToppedOut()) {
       quit = true;
     } else {
       hold = false;
