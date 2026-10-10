@@ -111,42 +111,305 @@ function stopGameLoop() {
   }
 }
 
+// Player input actions, shared by the keyboard and the on-screen touch controls.
+// Each one is a no-op unless a game is active and a piece is falling.
+function canControlPiece() {
+  return typeof gameScreen !== "undefined" && gameScreen && !!currBlock;
+}
+
+function moveLeft() {
+  if (!canControlPiece()) {
+    return;
+  }
+  if (isValidBlockState(currBlock, currBlock.x - BLOCK_SIZE, currBlock.y, currBlock.rotation)) {
+    currBlock.x -= BLOCK_SIZE;
+  }
+}
+
+function moveRight() {
+  if (!canControlPiece()) {
+    return;
+  }
+  if (isValidBlockState(currBlock, currBlock.x + BLOCK_SIZE, currBlock.y, currBlock.rotation)) {
+    currBlock.x += BLOCK_SIZE;
+  }
+}
+
+function rotatePiece() {
+  if (!canControlPiece()) {
+    return;
+  }
+  const nextRotation = currBlock.rotation < 3 ? currBlock.rotation + 1 : 0;
+  if (isValidBlockState(currBlock, currBlock.x, currBlock.y, nextRotation)) {
+    currBlock.rotation = nextRotation;
+  }
+}
+
+function softDrop() {
+  if (!canControlPiece()) {
+    return;
+  }
+  const dropY = currBlock.y + BLOCK_SIZE;
+  if (isValidBlockState(currBlock, currBlock.x, dropY, currBlock.rotation)) {
+    currBlock.y = dropY;
+    return;
+  }
+  // Less than a full row of room left: settle onto the lowest valid position
+  // so the next frame lands the piece instead of ignoring the key press.
+  let landingY = currBlock.y;
+  while (isValidBlockState(currBlock, currBlock.x, landingY + 1, currBlock.rotation)) {
+    landingY += 1;
+  }
+  currBlock.y = landingY;
+}
+
+const KEY_ACTIONS = {
+  ArrowLeft: moveLeft,
+  ArrowRight: moveRight,
+  ArrowUp: rotatePiece,
+  ArrowDown: softDrop,
+};
+
 window.addEventListener("keydown", function (event) {
-  if (!currBlock || typeof gameScreen === "undefined" || !gameScreen) {
+  const action = KEY_ACTIONS[event.key];
+  if (!action || !canControlPiece()) {
+    return;
+  }
+  event.preventDefault();
+  action();
+});
+
+// On-screen touch controls: press-and-hold auto-repeats Left/Right/Down.
+const TOUCH_REPEAT_DELAY_MS = 150;
+const TOUCH_REPEAT_INTERVAL_MS = 60;
+const TOUCH_ACTIONS = {
+  left: moveLeft,
+  right: moveRight,
+  rotate: rotatePiece,
+  down: softDrop,
+};
+const touchControlStops = [];
+
+function stopAllTouchRepeats() {
+  touchControlStops.forEach((stop) => stop());
+}
+
+function bindTouchControls() {
+  const buttons = document.querySelectorAll("[data-touch-action]");
+  buttons.forEach((button) => {
+    const action = TOUCH_ACTIONS[button.getAttribute("data-touch-action")];
+    if (!action) {
+      return;
+    }
+    const repeats = button.hasAttribute("data-repeat");
+    let delayTimer = null;
+    let repeatTimer = null;
+    let activePointerId = null;
+
+    const stop = () => {
+      window.clearTimeout(delayTimer);
+      window.clearInterval(repeatTimer);
+      delayTimer = null;
+      repeatTimer = null;
+      activePointerId = null;
+      button.classList.remove("is-pressed");
+    };
+    touchControlStops.push(stop);
+
+    button.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
+      // Keep focus where it is and suppress emulated mouse events / zoom.
+      event.preventDefault();
+      stop();
+      activePointerId = event.pointerId;
+      button.classList.add("is-pressed");
+      action();
+      if (repeats) {
+        delayTimer = window.setTimeout(() => {
+          repeatTimer = window.setInterval(() => {
+            if (!canControlPiece()) {
+              stop();
+              return;
+            }
+            action();
+          }, TOUCH_REPEAT_INTERVAL_MS);
+        }, TOUCH_REPEAT_DELAY_MS);
+      }
+    });
+
+    const release = (event) => {
+      if (activePointerId === null || event.pointerId === activePointerId) {
+        stop();
+      }
+    };
+    button.addEventListener("pointerup", release);
+    button.addEventListener("pointercancel", release);
+    button.addEventListener("pointerleave", release);
+
+    // Keyboard activation (Enter/Space on a focused button) has detail 0.
+    button.addEventListener("click", (event) => {
+      if (event.detail === 0) {
+        action();
+      }
+    });
+    button.addEventListener("contextmenu", (event) => event.preventDefault());
+  });
+
+  window.addEventListener("blur", stopAllTouchRepeats);
+  document.addEventListener("visibilitychange", stopAllTouchRepeats);
+}
+
+bindTouchControls();
+
+// High-DPI canvas setup: each canvas's backing store matches its CSS size x
+// devicePixelRatio, while drawing code keeps using logical coordinates.
+const HOLD_PREVIEW_SIZE = 240;
+const MAX_CANVAS_PIXELS = 8000000;
+const SCALED_CANVASES = [
+  { id: "myCanvas", width: BOARD_WIDTH, height: BOARD_HEIGHT },
+  { id: "hold-preview", width: HOLD_PREVIEW_SIZE, height: HOLD_PREVIEW_SIZE },
+];
+
+function applyCanvasTransform(context, canvas, logicalWidth, logicalHeight) {
+  context.setTransform(
+    canvas.width / logicalWidth,
+    0,
+    0,
+    canvas.height / logicalHeight,
+    0,
+    0
+  );
+}
+
+function resizeCanvasBackingStore(canvas, logicalWidth, logicalHeight, devicePixelSize) {
+  let width;
+  let height;
+  if (devicePixelSize) {
+    width = devicePixelSize.inlineSize;
+    height = devicePixelSize.blockSize;
+  } else {
+    const rect = canvas.getBoundingClientRect();
+    const style = window.getComputedStyle(canvas);
+    const dpr = window.devicePixelRatio || 1;
+    const horizontalChrome =
+      parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth) +
+      parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+    const verticalChrome =
+      parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth) +
+      parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    width = Math.round((rect.width - horizontalChrome) * dpr);
+    height = Math.round((rect.height - verticalChrome) * dpr);
+  }
+
+  // Hidden canvases report 0x0; keep the current backing store.
+  if (!(width > 0 && height > 0)) {
     return;
   }
 
-  if (
-    event.key === "ArrowLeft" ||
-    event.key === "ArrowRight" ||
-    event.key === "ArrowUp" ||
-    event.key === "ArrowDown"
-  ) {
-    event.preventDefault();
+  const area = width * height;
+  if (area > MAX_CANVAS_PIXELS) {
+    const shrink = Math.sqrt(MAX_CANVAS_PIXELS / area);
+    width = Math.floor(width * shrink);
+    height = Math.floor(height * shrink);
   }
 
-  if (event.key === "ArrowLeft") {
-    if (isValidBlockState(currBlock, currBlock.x - BLOCK_SIZE, currBlock.y, currBlock.rotation)) {
-      currBlock.x -= BLOCK_SIZE;
-    }
-  } else if (event.key === "ArrowRight") {
-    if (isValidBlockState(currBlock, currBlock.x + BLOCK_SIZE, currBlock.y, currBlock.rotation)) {
-      currBlock.x += BLOCK_SIZE;
-    }
-  } else if (event.key === "ArrowUp") {
-    const nextRotation = currBlock.rotation < 3 ? currBlock.rotation + 1 : 0;
-    if (isValidBlockState(currBlock, currBlock.x, currBlock.y, nextRotation)) {
-      currBlock.rotation = nextRotation;
-    }
-  } else if (event.key === "ArrowDown") {
-    const dropY = currBlock.y + BLOCK_SIZE;
-    if (isValidBlockState(currBlock, currBlock.x, dropY, currBlock.rotation)) {
-      currBlock.y = dropY;
+  if (canvas.width === width && canvas.height === height) {
+    return;
+  }
+
+  // Resizing clears the canvas, so carry the current picture over (matters
+  // when the game loop is stopped, e.g. the final board on the end screen).
+  let snapshot = null;
+  if (canvas.width > 0 && canvas.height > 0) {
+    snapshot = document.createElement("canvas");
+    snapshot.width = canvas.width;
+    snapshot.height = canvas.height;
+    const snapshotContext = snapshot.getContext("2d");
+    if (snapshotContext) {
+      snapshotContext.drawImage(canvas, 0, 0);
     } else {
-      currBlock.down = true;
+      snapshot = null;
     }
   }
-});
+
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) {
+    return;
+  }
+  if (snapshot) {
+    context.imageSmoothingEnabled = true;
+    context.drawImage(snapshot, 0, 0, width, height);
+  }
+  applyCanvasTransform(context, canvas, logicalWidth, logicalHeight);
+}
+
+function resizeScaledCanvases() {
+  SCALED_CANVASES.forEach((config) => {
+    const canvas = document.getElementById(config.id);
+    if (canvas) {
+      resizeCanvasBackingStore(canvas, config.width, config.height, null);
+    }
+  });
+}
+
+let hasDevicePixelResizeObserver = false;
+
+function setupCanvasResolution() {
+  if (typeof ResizeObserver !== "undefined") {
+    const observer = new ResizeObserver((entries) => {
+      entries.forEach((entry) => {
+        const config = SCALED_CANVASES.find((item) => item.id === entry.target.id);
+        if (!config) {
+          return;
+        }
+        let devicePixelSize =
+          entry.devicePixelContentBoxSize && entry.devicePixelContentBoxSize[0];
+        const cssSize = entry.contentBoxSize && entry.contentBoxSize[0];
+        if (devicePixelSize && cssSize) {
+          // Trust the exact device-pixel size only when it agrees with
+          // CSS size x devicePixelRatio (some emulators report CSS pixels).
+          const expected = cssSize.inlineSize * (window.devicePixelRatio || 1);
+          if (Math.abs(devicePixelSize.inlineSize - expected) > 2) {
+            devicePixelSize = null;
+          } else {
+            hasDevicePixelResizeObserver = true;
+          }
+        }
+        resizeCanvasBackingStore(
+          entry.target,
+          config.width,
+          config.height,
+          devicePixelSize || null
+        );
+      });
+    });
+    SCALED_CANVASES.forEach((config) => {
+      const canvas = document.getElementById(config.id);
+      if (!canvas) {
+        return;
+      }
+      try {
+        observer.observe(canvas, { box: "device-pixel-content-box" });
+      } catch (error) {
+        observer.observe(canvas);
+      }
+    });
+  }
+  // Fallback for browsers without device-pixel-content-box observation
+  // (which already reports zoom / devicePixelRatio changes).
+  window.addEventListener("resize", () => {
+    if (!hasDevicePixelResizeObserver) {
+      resizeScaledCanvases();
+    }
+  });
+  resizeScaledCanvases();
+}
+
+setupCanvasResolution();
 
 function startBoard() {
   let canvas = /** @type {HTMLCanvasElement} */ (
@@ -154,6 +417,7 @@ function startBoard() {
   );
   let context = canvas.getContext("2d");
   if (context) {
+    applyCanvasTransform(context, canvas, BOARD_WIDTH, BOARD_HEIGHT);
     const theme = getModeTheme();
     const palette = getModePalette();
     context.fillStyle = palette ? palette.boardFill : theme.boardTop;
@@ -608,6 +872,10 @@ function drawHoldPreview() {
   }
 
   const previewContext = previewCanvas.getContext("2d");
+  // Layout math uses the logical preview size; the transform maps it onto
+  // the (devicePixelRatio-scaled) backing store.
+  const previewSize = HOLD_PREVIEW_SIZE;
+  applyCanvasTransform(previewContext, previewCanvas, previewSize, previewSize);
   const theme = getModeTheme();
   const palette = getModePalette();
 
@@ -618,37 +886,37 @@ function drawHoldPreview() {
       0,
       0,
       0,
-      previewCanvas.height
+      previewSize
     );
     previewGradient.addColorStop(0, theme.boardTop);
     previewGradient.addColorStop(0.52, theme.boardMid);
     previewGradient.addColorStop(1, theme.boardBottom);
     previewContext.fillStyle = previewGradient;
   }
-  previewContext.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+  previewContext.fillRect(0, 0, previewSize, previewSize);
 
   previewContext.lineWidth = 0.6;
-  for (let i = 0; i <= previewCanvas.width / BLOCK_SIZE; i++) {
+  for (let i = 0; i <= previewSize / BLOCK_SIZE; i++) {
     previewContext.strokeStyle = i % 2 === 0
       ? (palette ? palette.gridMajor : theme.gridMajor)
       : (palette ? palette.gridMinor : theme.gridMinor);
     previewContext.beginPath();
     previewContext.moveTo(i * BLOCK_SIZE, 0);
-    previewContext.lineTo(i * BLOCK_SIZE, previewCanvas.height);
+    previewContext.lineTo(i * BLOCK_SIZE, previewSize);
     previewContext.stroke();
   }
-  for (let i = 0; i <= previewCanvas.height / BLOCK_SIZE; i++) {
+  for (let i = 0; i <= previewSize / BLOCK_SIZE; i++) {
     previewContext.strokeStyle = i % 2 === 0
       ? (palette ? palette.gridMajor : theme.gridMajor)
       : (palette ? palette.gridMinor : theme.gridMinor);
     previewContext.beginPath();
     previewContext.moveTo(0, i * BLOCK_SIZE);
-    previewContext.lineTo(previewCanvas.width, i * BLOCK_SIZE);
+    previewContext.lineTo(previewSize, i * BLOCK_SIZE);
     previewContext.stroke();
   }
 
   previewContext.fillStyle = "rgba(0, 0, 0, 0.05)";
-  previewContext.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+  previewContext.fillRect(0, 0, previewSize, previewSize);
 
   // If there's no held block, show empty preview
   if (!heldBlock || heldPoints.length === 0) {
@@ -657,14 +925,11 @@ function drawHoldPreview() {
     previewContext.textAlign = "center";
     previewContext.fillText(
       "No piece held",
-      previewCanvas.width / 2,
-      previewCanvas.height / 2
+      previewSize / 2,
+      previewSize / 2
     );
     return;
   }
-
-  // Calculate center position for the preview using actual canvas size
-  const previewSize = previewCanvas.width; // Now 240 instead of 160
 
   // Find the bounds of the held piece
   let minX = Infinity,
@@ -734,9 +999,12 @@ function game(timestamp) {
   fallProgress -= step;
 
   function drawBoard(context, theme) {
+    // Re-apply the logical 400x800 transform every frame (other code may
+    // reset it, e.g. to clear the canvas between runs).
+    applyCanvasTransform(context, canvas, BOARD_WIDTH, BOARD_HEIGHT);
     const palette = getModePalette();
     context.fillStyle = palette ? palette.boardFill : theme.boardTop;
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
 
     context.lineWidth = 0.8;
 
@@ -746,7 +1014,7 @@ function game(timestamp) {
         : (palette ? palette.gridMinor : theme.gridMinor);
       context.beginPath();
       context.moveTo(i * BLOCK_SIZE, 0);
-      context.lineTo(i * BLOCK_SIZE, canvas.height);
+      context.lineTo(i * BLOCK_SIZE, BOARD_HEIGHT);
       context.stroke();
     }
 
@@ -756,7 +1024,7 @@ function game(timestamp) {
         : (palette ? palette.gridMinor : theme.gridMinor);
       context.beginPath();
       context.moveTo(0, i * BLOCK_SIZE);
-      context.lineTo(canvas.width, i * BLOCK_SIZE);
+      context.lineTo(BOARD_WIDTH, i * BLOCK_SIZE);
       context.stroke();
     }
   }
