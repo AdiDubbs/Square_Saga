@@ -337,6 +337,13 @@ function holdBlock() {
     holdButton.textContent = "Hold";
   }
   if (holdFeedback) {
+    if (mode === 1) {
+      holdFeedback.textContent = "-50 Score \u00b7 +50 Health";
+    } else if (mode === 2) {
+      holdFeedback.textContent = "-50 Score \u00b7 +50 Aura";
+    } else {
+      holdFeedback.textContent = "-50 Score";
+    }
     holdFeedback.classList.remove("show");
     holdFeedback.offsetHeight;
     holdFeedback.classList.add("show");

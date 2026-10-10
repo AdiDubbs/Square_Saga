@@ -12,13 +12,13 @@ Square Saga is a Tetris-like puzzle game that combines classic gameplay mechanic
 
 - **Classic Tetris Mechanics**: Familiar block-falling, rotation, and line-clearing gameplay
 - **10 Unique Block Types**: Including traditional Tetris pieces plus custom variations
-- **Smooth Controls**: Responsive keyboard controls for movement, rotation, and soft drop
+- **Smooth Controls**: Responsive keyboard controls for movement, rotation, and soft drop, plus on-screen touch controls on phones and tablets
 
 ### Visual & Audio
 
 - **Three Modes**: Classic, Light, and Dark modes
 - **Modern UI Design**: Beautiful, modern interface with smooth animations
-- **Hold Block System**: Strategic block storage with visual preview and point cost
+- **Hold Block System**: Strategic block storage (once per piece) with visual preview and point cost
 - **Multiple Game Modes**: Three distinct experiences with unique narratives
 - **Character Sprites**: Visual enemies (Ancient Demon Vortax, Sacred Aura-Giving Tree)
 
@@ -34,25 +34,25 @@ Square Saga is a Tetris-like puzzle game that combines classic gameplay mechanic
 
 - **Objective**: Traditional Tetris gameplay
 - **Goal**: Clear as many lines as possible
-- **Scoring**: Points for blocks placed and lines cleared
+- **Scoring**: Points for blocks placed and lines cleared, with bigger rewards for multi-line clears
 - **End Condition**: Game ends when blocks reach the top
 
 ### Light Mode
 
 - **Objective**: Champion the forces of light and protect the universe
 - **Story**: Defeat the ancient demon Vortax by clearing rows of blocks
-- **Mechanics**: Health system (2000 points to win)
+- **Mechanics**: Vortax has 2000 health; only line clears deal damage, and bigger clears hit harder
 - **Theme**: Bright, radiant color scheme
-- **Challenge**: Strategic use of hold mechanic while managing Vortax's healing
+- **Challenge**: Each Hold restores 50 of Vortax's health, so use it wisely
 - **Role**: You are the universe's salvation, fighting for justice and peace
 
 ### Dark Mode
 
 - **Objective**: Master the shadows and achieve ultimate conquest
 - **Story**: Destroy the sacred Aura-Giving Tree to claim dominion over the universe
-- **Mechanics**: Aura system (2000 points to win)
+- **Mechanics**: The tree has 2000 aura; only line clears drain it, and bigger clears drain more
 - **Theme**: Dark, mysterious color scheme with shadow aesthetics
-- **Challenge**: Balance between aggression and strategy while managing the tree's aura restoration
+- **Challenge**: Each Hold restores 50 aura, so balance aggression with careful piece control
 - **Role**: You are the harbinger of darkness, seeking ultimate power and dominion
 
 ## How to Play
@@ -62,23 +62,24 @@ Square Saga is a Tetris-like puzzle game that combines classic gameplay mechanic
 - **← → Arrow Keys**: Move blocks left and right
 - **↑ Arrow Key**: Rotate blocks
 - **↓ Arrow Key**: Soft drop
-- **Hold Button**: Save current block for later use (shows as "Reserved Power")
+- **Touch Buttons**: On phones and tablets, on-screen Left, Right, Drop and Rotate buttons appear during play (press and hold Left, Right or Drop to repeat)
+- **Hold Button**: Save the current block for later use (once per piece)
 - **Surrender Button**: Quit current game
 
 ### Gameplay Mechanics
 
 1. **Block Placement**: Guide falling blocks to create complete horizontal lines
 2. **Line Clearing**: Complete rows disappear and award points
-3. **Hold Strategy**: Use the hold function to save useful blocks
+3. **Hold Strategy**: Use the hold function to save useful blocks (once per piece)
 4. **Score Building**: Earn points for blocks placed and lines cleared
-5. **Mode Objectives**: Achieve mode-specific goals (Classic: survive, Light/Dark: reach 2000 points)
+5. **Mode Objectives**: Achieve mode-specific goals (Classic: survive, Light/Dark: drain the enemy's 2000 health with line clears)
 
 ### Scoring System
 
 - **Block Placement**: +20 points per block
-- **Line Clear**: +100 points per line
-- **Hold Cost**: -50 points per hold use
-- **Mode Victory**: Reach 2000 points (Light/Dark modes)
+- **Line Clears**: 1 line = 100, 2 lines = 300, 3 lines = 500, 4 lines = 800
+- **Hold Cost**: -50 points per hold use (in Light/Dark it also restores 50 enemy health, up to the 2000 maximum)
+- **Mode Victory**: Reduce the enemy's health from 2000 to 0 (Light/Dark modes); only line clears deal damage
 
 ## Installation & Setup
 
@@ -92,7 +93,7 @@ Square Saga is a Tetris-like puzzle game that combines classic gameplay mechanic
 1. **Clone the repository**:
 
    ```bash
-   git clone https://github.com/yourusername/Square_Saga.git
+   git clone https://github.com/AdiDubbs/Square_Saga.git
    cd Square_Saga
    ```
 
@@ -116,8 +117,6 @@ python -m http.server 8000
 
 Then navigate to `http://localhost:8000` in your browser.
 
-## Technical Details
-
 ## Screenshots
 
 ### Home Screen
@@ -131,6 +130,8 @@ Then navigate to `http://localhost:8000` in your browser.
 ### End Screen
 
 ![Square Saga End Screen](images/end_screen.png)
+
+## Technical Details
 
 ### Architecture
 
@@ -162,7 +163,8 @@ Square_Saga/
 
 - Main HTML structure
 - CSS styling and animations
-- UI layout and responsive design
+- UI layout and responsive design (desktop, tablet, and phone)
+- On-screen touch controls
 - Google Fonts integration
 
 #### `game.js`
