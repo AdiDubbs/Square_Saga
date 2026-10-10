@@ -19,6 +19,7 @@ function showMenu(menuId) {
   const transitionToken = ++menuTransitionToken;
   const outgoing = activeMenuId ? document.getElementById(activeMenuId) : null;
 
+  incoming.inert = false;
   incoming.classList.remove("hidden", "menu-leave");
   incoming.classList.add("menu-screen", "menu-enter");
 
@@ -32,6 +33,11 @@ function showMenu(menuId) {
   });
 
   if (outgoing && outgoing !== incoming) {
+    // Block keyboard activation of the leaving menu during its fade.
+    outgoing.inert = true;
+    if (outgoing.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
     outgoing.classList.remove("menu-active", "menu-enter");
     outgoing.classList.add("menu-leave");
 
@@ -113,6 +119,12 @@ function showAboutMenu() {
 }
 
 function showGameplayUI() {
+  // Clear the hold penalty popup so its animation does not replay
+  const holdFeedback = document.getElementById("hold-feedback");
+  if (holdFeedback) {
+    holdFeedback.classList.remove("show");
+  }
+
   showMenu("gameplay-ui");
 
   // Reset hold button to initial state
@@ -254,6 +266,16 @@ function resetRunState() {
   endScreen = false;
   quit = false;
   stopGameLoop();
+
+  // Clear the previous run's board so menus match the fresh-load state
+  const boardCanvas = document.getElementById("myCanvas");
+  const boardContext = boardCanvas ? boardCanvas.getContext("2d") : null;
+  if (boardContext) {
+    boardContext.save();
+    boardContext.setTransform(1, 0, 0, 1, 0, 0);
+    boardContext.clearRect(0, 0, boardCanvas.width, boardCanvas.height);
+    boardContext.restore();
+  }
 }
 
 function fightAgain() {
