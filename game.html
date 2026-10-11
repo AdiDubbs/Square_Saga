@@ -996,8 +996,22 @@
         }
       }
 
-      /* Short, wide screens such as phones in landscape: shrink the board
-         below its usual 440px floor and compact the panel to fit. */
+      /* Side-by-side layouts: the middle row gets whatever height is left
+         after the HUD, touch controls and buttons, and the cards shrink to
+         fit it (leaving room for their labels) instead of overlapping. */
+      @media (min-width: 641px) {
+        .gameplay-middle {
+          container-type: size;
+        }
+
+        .character-container-large,
+        .hold-preview-canvas-large {
+          width: min(var(--card-size), 100%, calc(100cqh - 64px));
+        }
+      }
+
+      /* Short, wide screens such as phones in landscape: let the board
+         shrink below its usual 440px floor. */
       @media (max-height: 540px) and (min-width: 641px) {
         :root {
           --page-pad: 8px;
@@ -1012,6 +1026,24 @@
 
         .menu-screen {
           inset: 12px;
+        }
+
+        .game-title {
+          font-size: clamp(1.8rem, 4vw, 2.4rem);
+        }
+      }
+
+      /* Compact the panel by its own height rather than the viewport's: the
+         panel follows the board, which is also limited by the viewport width,
+         so a tall but narrow screen can still leave a short panel. */
+      @media (min-width: 641px) {
+        .ui-panel {
+          container: panel / size;
+        }
+      }
+
+      @container panel (max-height: 600px) {
+        .menu-screen {
           gap: 8px;
           padding-top: 4px;
           padding-bottom: 4px;
@@ -1046,7 +1078,6 @@
         }
 
         .gameplay-middle {
-          flex: 0 0 auto;
           gap: 12px;
           margin-bottom: 0;
         }
@@ -1084,13 +1115,8 @@
           font-size: 0.82rem;
           border-radius: 20px;
         }
-
-        .game-title {
-          font-size: clamp(1.8rem, 4vw, 2.4rem);
-        }
       }
 
-      /* Phones: board on top, compact HUD and controls below it. */
       @media (max-width: 640px) {
         :root {
           --page-pad-x: 12px;
