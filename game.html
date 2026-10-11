@@ -996,6 +996,100 @@
         }
       }
 
+      /* Short, wide screens such as phones in landscape: shrink the board
+         below its usual 440px floor and compact the panel to fit. */
+      @media (max-height: 540px) and (min-width: 641px) {
+        :root {
+          --page-pad: 8px;
+          --board-h: clamp(240px, min(var(--board-fit-h), var(--board-fit-w)), 800px);
+          --card-size: 64px;
+        }
+
+        .ui-panel {
+          padding: 12px;
+          border-radius: 16px;
+        }
+
+        .menu-screen {
+          inset: 12px;
+          gap: 8px;
+          padding-top: 4px;
+          padding-bottom: 4px;
+          overflow-y: auto;
+        }
+
+        .gameplay-screen {
+          gap: 8px;
+          padding-top: 0;
+        }
+
+        .gameplay-title {
+          margin-bottom: 4px;
+          font-size: 1rem;
+        }
+
+        .metric-card {
+          padding: 3px 8px;
+        }
+
+        .score-label {
+          font-size: 0.64rem;
+        }
+
+        .metric-value {
+          font-size: 1rem;
+        }
+
+        .health-bar-main {
+          height: 12px;
+          margin-top: 6px;
+        }
+
+        .gameplay-middle {
+          flex: 0 0 auto;
+          gap: 12px;
+          margin-bottom: 0;
+        }
+
+        .character-container-large,
+        .hold-preview-canvas-large {
+          border-radius: 12px;
+        }
+
+        .character-name,
+        .hold-title {
+          margin-top: 4px;
+          font-size: 0.7rem;
+        }
+
+        .touch-controls {
+          gap: 10px;
+        }
+
+        .touch-cluster {
+          gap: 8px;
+        }
+
+        .touch-btn {
+          height: 42px;
+          border-radius: 14px;
+        }
+
+        .gameplay-actions-row {
+          gap: 10px;
+        }
+
+        .gameplay-btn-large {
+          padding: 8px 14px;
+          font-size: 0.82rem;
+          border-radius: 20px;
+        }
+
+        .game-title {
+          font-size: clamp(1.8rem, 4vw, 2.4rem);
+        }
+      }
+
       /* Phones: board on top, compact HUD and controls below it. */
       @media (max-width: 640px) {
         :root {

@@ -1171,6 +1171,14 @@ function game(timestamp) {
     }
   }
 
+  if (quit) {
+    // The loop stops here, so redraw the settled board once; otherwise the
+    // last frame (drawn before this landing's row clear) stays on screen.
+    currPoints = [];
+    drawBoard(context, theme);
+    chooseBlock(context, theme);
+  }
+
   if (gameScreen && !quit) {
     gameLoopFrame = window.requestAnimationFrame(game);
   } else {
