@@ -19,6 +19,7 @@ function showMenu(menuId) {
   const transitionToken = ++menuTransitionToken;
   const outgoing = activeMenuId ? document.getElementById(activeMenuId) : null;
 
+  incoming.inert = false;
   incoming.classList.remove("hidden", "menu-leave");
   incoming.classList.add("menu-screen", "menu-enter");
 
@@ -32,6 +33,11 @@ function showMenu(menuId) {
   });
 
   if (outgoing && outgoing !== incoming) {
+    // Block keyboard activation of the leaving menu during its fade.
+    outgoing.inert = true;
+    if (outgoing.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
     outgoing.classList.remove("menu-active", "menu-enter");
     outgoing.classList.add("menu-leave");
 
@@ -69,9 +75,9 @@ function showAboutMenu() {
     `;
     aboutModeRules.innerHTML = `
       <ul>
-        <li>Clear full horizontal lines to score points and create space.</li>
-        <li>Clear multiple lines at once for higher line-clear rewards.</li>
-        <li>Using Hold costs points, so use it when it improves your board.</li>
+        <li>Every placed piece earns 20 points; clear full horizontal lines to score more and create space.</li>
+        <li>Bigger clears pay more: 1 line is 100, 2 lines 300, 3 lines 500, and 4 lines 800.</li>
+        <li>Hold once per piece. Each Hold costs 50 points, so use it when it improves your board.</li>
         <li>The game ends when blocks reach the top of the board.</li>
       </ul>
     `;
@@ -86,10 +92,10 @@ function showAboutMenu() {
     `;
     aboutModeRules.innerHTML = `
       <ul>
-        <li>Play by standard line-clear rules: clear full rows to score and keep the board open.</li>
-        <li>Each line clear also reduces Vortax's health; win by reducing it to zero.</li>
-        <li>Using Hold restores a small amount of Vortax's health in exchange for better piece control.</li>
-        <li>You lose if the stack reaches the top before Vortax is defeated.</li>
+        <li>Only line clears strike Vortax. Placing pieces still earns score, but deals no damage.</li>
+        <li>Bigger clears hit harder: 1 line deals 100, 2 lines 300, 3 lines 500, and 4 lines 800.</li>
+        <li>Hold once per piece. Each Hold restores 50 of Vortax's health in exchange for better piece control.</li>
+        <li>Drain Vortax's 2000 health to zero to win; you lose if the stack reaches the top first.</li>
       </ul>
     `;
   } else if (mode === 2) {
@@ -103,16 +109,22 @@ function showAboutMenu() {
     `;
     aboutModeRules.innerHTML = `
       <ul>
-        <li>Standard line-clear rules apply: complete full rows to score and maintain space.</li>
-        <li>Each line clear also lowers the tree's aura; win by draining aura to zero.</li>
-        <li>Using Hold restores a portion of aura in exchange for tactical positioning.</li>
-        <li>You lose if the board tops out before the tree's aura is depleted.</li>
+        <li>Only line clears drain the tree's aura. Placing pieces still earns score, but leaves the aura untouched.</li>
+        <li>Bigger clears drain more: 1 line takes 100, 2 lines 300, 3 lines 500, and 4 lines 800.</li>
+        <li>Hold once per piece. Each Hold restores 50 aura in exchange for tactical positioning.</li>
+        <li>Drain the tree's 2000 aura to zero to win; you lose if the board tops out first.</li>
       </ul>
     `;
   }
 }
 
 function showGameplayUI() {
+  // Clear the hold penalty popup so its animation does not replay
+  const holdFeedback = document.getElementById("hold-feedback");
+  if (holdFeedback) {
+    holdFeedback.classList.remove("show");
+  }
+
   showMenu("gameplay-ui");
 
   // Reset hold button to initial state
@@ -136,7 +148,7 @@ function showEndMenu() {
   finalScore.textContent = `Score ${score}`;
 
   if (mode !== 0) {
-    if (score >= OBJECTIVE_SCORE) {
+    if (enemyHealth <= 0) {
       endTitle.textContent = "Battle Results";
       endMessage.textContent = "Victory";
       endMessage.className = "result-badge victory";
@@ -211,7 +223,8 @@ function startGame() {
   gameScreen = true;
   aboutScreen = false;
 
-  // Reset hold state for new game
+  // Reset hold and enemy state for new game
+  enemyHealth = OBJECTIVE_SCORE;
   hold = false;
   heldBlock = null;
   heldPoints = [];
@@ -254,6 +267,16 @@ function resetRunState() {
   endScreen = false;
   quit = false;
   stopGameLoop();
+
+  // Clear the previous run's board so menus match the fresh-load state
+  const boardCanvas = document.getElementById("myCanvas");
+  const boardContext = boardCanvas ? boardCanvas.getContext("2d") : null;
+  if (boardContext) {
+    boardContext.save();
+    boardContext.setTransform(1, 0, 0, 1, 0, 0);
+    boardContext.clearRect(0, 0, boardCanvas.width, boardCanvas.height);
+    boardContext.restore();
+  }
 }
 
 function fightAgain() {
@@ -275,7 +298,16 @@ function holdBlock() {
 
   const holdButton = document.getElementById("hold-button");
   const holdFeedback = document.getElementById("hold-feedback");
+  if (holdButton) {
+    holdButton.blur();
+  }
+  if (hold) {
+    return;
+  }
   score += HOLD_COST;
+  if (mode !== 0) {
+    enemyHealth = Math.min(OBJECTIVE_SCORE, enemyHealth + HOLD_HEAL);
+  }
 
   if (!heldBlock) {
     heldBlock = { ...currBlock };
@@ -305,6 +337,13 @@ function holdBlock() {
     holdButton.textContent = "Hold";
   }
   if (holdFeedback) {
+    if (mode === 1) {
+      holdFeedback.textContent = "-50 Score \u00b7 +50 Health";
+    } else if (mode === 2) {
+      holdFeedback.textContent = "-50 Score \u00b7 +50 Aura";
+    } else {
+      holdFeedback.textContent = "-50 Score";
+    }
     holdFeedback.classList.remove("show");
     holdFeedback.offsetHeight;
     holdFeedback.classList.add("show");
@@ -338,8 +377,8 @@ function updateGameplayUI() {
     // Light Mode - Show monster (enemy)
     gameTitle.textContent = "Light Mode";
     objectiveLabel.textContent = "Enemy Health";
-    const health = Math.max(0, Math.min(OBJECTIVE_SCORE, OBJECTIVE_SCORE - score));
-    const healthPercent = (health / OBJECTIVE_SCORE) * 100;
+    const health = Math.max(0, enemyHealth);
+    const healthPercent = Math.min(100, (health / OBJECTIVE_SCORE) * 100);
     objectiveValue.textContent = health;
     performanceLabel.textContent = "Score";
     performanceValue.textContent = score;
@@ -355,8 +394,8 @@ function updateGameplayUI() {
     // Dark Mode - Show tree (enemy)
     gameTitle.textContent = "Dark Mode";
     objectiveLabel.textContent = "Tree Aura";
-    const aura = Math.max(0, Math.min(OBJECTIVE_SCORE, OBJECTIVE_SCORE - score));
-    const auraPercent = (aura / OBJECTIVE_SCORE) * 100;
+    const aura = Math.max(0, enemyHealth);
+    const auraPercent = Math.min(100, (aura / OBJECTIVE_SCORE) * 100);
     objectiveValue.textContent = aura;
     performanceLabel.textContent = "Score";
     performanceValue.textContent = score;
@@ -389,11 +428,13 @@ function menus() {
     // Update the UI continuously (score, health bar, etc.)
     updateGameplayUI();
 
-    if (score >= OBJECTIVE_SCORE && mode !== 0) {
+    if (enemyHealth <= 0 && mode !== 0) {
       quit = true;
     }
 
     if (quit) {
+      // Freeze the board before rendering the end screen once.
+      stopGameLoop();
       endScreen = true;
       gameScreen = false;
       hold = false;
@@ -401,10 +442,6 @@ function menus() {
       gameplayUIShown = false;
       showEndMenu();
     }
-
-  } else if (endScreen) {
-    endScreen = false;
-    showEndMenu();
   }
 
   window.requestAnimationFrame(menus);

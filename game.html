@@ -21,6 +21,7 @@
 <!doctype html>
 <html>
   <head>
+    <meta charset="utf-8" />
     <title>Square Saga</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Import Google Fonts for enhanced typography -->
@@ -35,6 +36,31 @@
         box-sizing: border-box;
       }
 
+      /*
+       * Layout sizing: the board keeps its 1:2 aspect ratio and scales to the
+       * viewport (the canvas drawing stays in 400x800 logical px). The panel
+       * height follows the board. --board-h is the board's content height.
+       */
+      :root {
+        --page-pad: 20px;
+        --board-gap: 10px;
+        --board-border: 1px;
+        --panel-min: 340px;
+        --board-fit-h: calc(100vh - 2 * var(--page-pad) - 2 * var(--board-border));
+        --board-fit-w: calc(
+          (100vw - 2 * var(--page-pad) - var(--board-gap) - var(--panel-min) -
+            2 * var(--board-border)) * 2
+        );
+        --board-h: clamp(440px, min(var(--board-fit-h), var(--board-fit-w)), 800px);
+        --card-size: clamp(120px, calc(var(--board-h) * 0.27), 216px);
+      }
+
+      @supports (height: 100dvh) {
+        :root {
+          --board-fit-h: calc(100dvh - 2 * var(--page-pad) - 2 * var(--board-border));
+        }
+      }
+
       body {
         font-family: "Plus Jakarta Sans", sans-serif;
         background: linear-gradient(
@@ -43,7 +69,8 @@
           rgba(33, 41, 67, 1)
         );
         color: rgba(246, 239, 226, 1);
-        overflow: hidden;
+        min-height: 100vh;
+        touch-action: manipulation;
         transition:
           background 320ms ease,
           color 220ms ease;
@@ -95,22 +122,37 @@
         justify-content: center;
         align-items: center;
         min-height: 100vh;
-        gap: 10px;
+        padding: var(--page-pad);
+        gap: var(--board-gap);
         position: relative;
         z-index: 1;
       }
 
+      @supports (height: 100dvh) {
+        .game-container {
+          min-height: 100dvh;
+        }
+      }
+
       .game-board {
-        border: 1px solid rgba(226, 197, 143, 0.46);
-        border-radius: 24px;
+        box-sizing: content-box;
+        flex: none;
+        width: calc(var(--board-h) / 2);
+        height: var(--board-h);
+        border: var(--board-border) solid rgba(226, 197, 143, 0.46);
+        border-radius: 5px;
         box-shadow: 0 12px 24px rgba(0, 0, 0, 0.26);
         background: rgba(39, 48, 73, 1);
         display: block;
+        /* Paint above the panel's drop shadow. */
+        position: relative;
+        z-index: 1;
       }
 
       .ui-panel {
-        width: 730px;
-        height: 800px;
+        flex: 0 1 730px;
+        min-width: var(--panel-min);
+        height: calc(var(--board-h) + 2 * var(--board-border));
         background:
           linear-gradient(
             180deg,
@@ -293,6 +335,11 @@
         pointer-events: none;
       }
 
+      .game-button,
+      .mode-btn {
+        -webkit-tap-highlight-color: transparent;
+      }
+
       .game-button:hover,
       .mode-btn:hover {
         border-color: rgba(234, 209, 159, 0.76);
@@ -458,16 +505,24 @@
         gap: 28px;
         margin-bottom: 20px;
         flex: 1;
-        min-height: 300px;
+        min-height: 0;
+        width: 100%;
+        max-width: calc(2 * var(--card-size) + 60px);
       }
 
       .gameplay-column-centered {
-        flex: 1;
+        flex: 1 1 0;
+        min-width: 0;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: center;
         gap: 10px;
+      }
+
+      /* Classic mode has no character: let the hold card take the centre. */
+      .gameplay-column-character:not(:has(> .character-section[style*="block"])) {
+        display: none;
       }
 
       .character-section,
@@ -482,8 +537,10 @@
 
       .character-container-large,
       .hold-preview-canvas-large {
-        width: 216px;
-        height: 216px;
+        display: block;
+        width: min(var(--card-size), 100%);
+        height: auto;
+        aspect-ratio: 1 / 1;
         border-radius: 22px;
         border: 1.5px solid rgba(226, 197, 143, 0.54);
         box-shadow:
@@ -498,6 +555,7 @@
       }
 
       .character-image {
+        display: block;
         width: 100%;
         height: 100%;
         object-fit: cover;
@@ -533,16 +591,20 @@
         display: flex;
         gap: 20px;
         justify-content: center;
+        width: 100%;
+        max-width: 360px;
       }
 
       .action-slot {
-        flex: 1;
+        flex: 1 1 0;
+        min-width: 0;
         max-width: 220px;
         position: relative;
       }
 
       .gameplay-btn {
         width: 100%;
+        min-width: 0;
         margin: 0;
         padding: 10px 6px;
         font-size: 1rem;
@@ -556,8 +618,10 @@
 
       .hold-feedback {
         position: absolute;
-        top: -10px;
+        /* Sits fully above the Hold button instead of over its border. */
+        bottom: calc(100% + 6px);
         left: 50%;
+        white-space: nowrap;
         transform: translateX(-50%) translateY(0);
         opacity: 0;
         color: rgba(255, 150, 140, 0.96);
@@ -597,7 +661,7 @@
         grid-template-columns: 1fr;
         gap: 14px;
         width: 100%;
-        flex: 1;
+        flex: 1 0 auto;
         min-height: 0;
       }
 
@@ -640,6 +704,7 @@
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
         gap: 10px;
+        flex-shrink: 0;
       }
 
       .key-chip {
@@ -705,6 +770,7 @@
         align-items: stretch;
         justify-content: flex-start;
         gap: 14px;
+        overflow-y: auto;
       }
 
       .end-hero {
@@ -716,7 +782,7 @@
         display: grid;
         grid-template-columns: 1fr;
         gap: 12px;
-        flex: 1;
+        flex: 1 0 auto;
         min-height: 0;
       }
 
@@ -751,6 +817,7 @@
         grid-template-columns: 1fr 1fr;
         gap: 10px;
         max-width: 430px;
+        margin: 0 auto;
       }
 
       .dual-actions .game-button {
@@ -766,15 +833,99 @@
         color: rgba(202, 118, 108, 1);
       }
 
+      /* On-screen controls for touch devices and narrow screens */
+      .touch-controls {
+        display: none;
+        width: 100%;
+        max-width: 460px;
+        margin: 0 auto;
+        justify-content: space-between;
+        gap: 16px;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+      }
+
+      .touch-cluster {
+        flex: 1;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .touch-btn {
+        min-width: 0;
+        width: 100%;
+        height: 58px;
+        margin: 0;
+        padding: 0;
+        border-radius: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .touch-btn svg {
+        width: 26px;
+        height: 26px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        pointer-events: none;
+      }
+
+      .touch-btn.is-pressed {
+        border-color: rgba(234, 209, 159, 0.86);
+        filter: brightness(1.16);
+        transform: scale(0.97);
+        box-shadow:
+          0 4px 10px rgba(6, 7, 12, 0.36),
+          0 0 0 1px rgba(234, 209, 159, 0.26),
+          inset 0 1px 0 rgba(255, 246, 224, 0.2);
+      }
+
+      .key-hint-touch {
+        display: none;
+      }
+
+      @media (any-pointer: coarse), (max-width: 640px) {
+        .touch-controls {
+          display: flex;
+        }
+
+        /* The popup rises over the touch controls here, so give it a backing. */
+        .hold-feedback {
+          z-index: 5;
+          padding: 3px 12px;
+          border-radius: 999px;
+          background: rgba(22, 27, 44, 0.94);
+        }
+      }
+
+      @media (pointer: coarse) {
+        .key-hint-keys {
+          display: none;
+        }
+
+        .key-hint-touch {
+          display: inline;
+        }
+      }
+
       @media (max-width: 1260px) {
-        .game-container {
-          gap: 10px;
-          padding: 10px;
+        :root {
+          --page-pad: 14px;
         }
 
         .ui-panel {
-          width: 680px;
-          height: 760px;
+          flex-basis: 680px;
           padding: 24px;
         }
 
@@ -790,12 +941,6 @@
           gap: 20px;
         }
 
-        .hold-preview-canvas-large,
-        .character-container-large {
-          width: 208px;
-          height: 208px;
-        }
-
         .about-layout {
           grid-template-columns: 1fr;
         }
@@ -807,19 +952,368 @@
 
       @media (min-width: 1420px) {
         .ui-panel {
-          width: 700px;
+          flex-basis: 700px;
         }
       }
 
-      @media (max-width: 860px) {
-        .game-container {
-          flex-direction: column;
-          padding: 10px;
+      @media (max-width: 1024px) {
+        :root {
+          --panel-min: 360px;
+        }
+      }
+
+      /* Shorter viewports: tighten vertical rhythm so everything fits. */
+      @media (max-height: 820px) and (min-width: 641px) {
+        .gameplay-screen {
+          gap: 14px;
+        }
+
+        .gameplay-title {
+          margin-bottom: 6px;
+          font-size: 1.4rem;
+        }
+
+        .gameplay-middle {
+          margin-bottom: 0;
+        }
+
+        #mode-menu {
+          gap: 22px;
+          padding-top: 12px;
+          padding-bottom: 12px;
+        }
+
+        .landing-stack {
+          gap: 18px;
+        }
+
+        .game-title {
+          font-size: clamp(2.4rem, 4.6vw, 3.2rem);
+        }
+
+        #mode-menu .mode-buttons {
+          gap: 14px;
+        }
+      }
+
+      /* Side-by-side layouts: the middle row gets whatever height is left
+         after the HUD, touch controls and buttons, and the cards shrink to
+         fit it (leaving room for their labels) instead of overlapping. */
+      @media (min-width: 641px) {
+        .gameplay-middle {
+          container-type: size;
+        }
+
+        .character-container-large,
+        .hold-preview-canvas-large {
+          width: min(var(--card-size), 100%, calc(100cqh - 64px));
+        }
+      }
+
+      /* Short, wide screens such as phones in landscape: let the board
+         shrink below its usual 440px floor. */
+      @media (max-height: 540px) and (min-width: 641px) {
+        :root {
+          --page-pad: 8px;
+          --board-h: clamp(240px, min(var(--board-fit-h), var(--board-fit-w)), 800px);
+          --card-size: 64px;
         }
 
         .ui-panel {
-          width: min(95vw, 700px);
-          height: min(94vh, 760px);
+          padding: 12px;
+          border-radius: 16px;
+        }
+
+        .menu-screen {
+          inset: 12px;
+        }
+
+        .game-title {
+          font-size: clamp(1.8rem, 4vw, 2.4rem);
+        }
+      }
+
+      /* Compact the panel by its own height rather than the viewport's: the
+         panel follows the board, which is also limited by the viewport width,
+         so a tall but narrow screen can still leave a short panel. */
+      @media (min-width: 641px) {
+        .ui-panel {
+          container: panel / size;
+        }
+      }
+
+      @container panel (max-height: 600px) {
+        .menu-screen {
+          gap: 8px;
+          padding-top: 4px;
+          padding-bottom: 4px;
+          overflow-y: auto;
+        }
+
+        .gameplay-screen {
+          gap: 8px;
+          padding-top: 0;
+        }
+
+        .gameplay-title {
+          margin-bottom: 4px;
+          font-size: 1rem;
+        }
+
+        .metric-card {
+          padding: 3px 8px;
+        }
+
+        .score-label {
+          font-size: 0.64rem;
+        }
+
+        .metric-value {
+          font-size: 1rem;
+        }
+
+        .health-bar-main {
+          height: 12px;
+          margin-top: 6px;
+        }
+
+        .gameplay-middle {
+          gap: 12px;
+          margin-bottom: 0;
+        }
+
+        .character-container-large,
+        .hold-preview-canvas-large {
+          border-radius: 12px;
+        }
+
+        .character-name,
+        .hold-title {
+          margin-top: 4px;
+          font-size: 0.7rem;
+        }
+
+        .touch-controls {
+          gap: 10px;
+        }
+
+        .touch-cluster {
+          gap: 8px;
+        }
+
+        .touch-btn {
+          height: 42px;
+          border-radius: 14px;
+        }
+
+        .gameplay-actions-row {
+          gap: 10px;
+        }
+
+        .gameplay-btn-large {
+          padding: 8px 14px;
+          font-size: 0.82rem;
+          border-radius: 20px;
+        }
+      }
+
+      @media (max-width: 640px) {
+        :root {
+          --page-pad-x: 12px;
+          --page-pad-y: 10px;
+          --board-gap: 8px;
+          --hud-h: 212px;
+          --card-size: 56px;
+          --board-fit-h: calc(
+            100vh - 2 * var(--page-pad-y) - var(--board-gap) - var(--hud-h) -
+              2 * var(--board-border)
+          );
+          --board-fit-w: calc((100vw - 2 * var(--page-pad-x) - 2 * var(--board-border)) * 2);
+          --board-h: clamp(300px, min(var(--board-fit-h), var(--board-fit-w)), 800px);
+          --menu-min-h: calc(100vh - 2 * var(--page-pad-y) - 26px);
+        }
+
+        @supports (height: 100dvh) {
+          :root {
+            --board-fit-h: calc(
+              100dvh - 2 * var(--page-pad-y) - var(--board-gap) - var(--hud-h) -
+                2 * var(--board-border)
+            );
+            --menu-min-h: calc(100dvh - 2 * var(--page-pad-y) - 26px);
+          }
+        }
+
+        .game-container {
+          flex-direction: column;
+          justify-content: flex-start;
+          padding: var(--page-pad-y) var(--page-pad-x);
+        }
+
+        .ui-panel {
+          flex: none;
+          width: 100%;
+          max-width: 560px;
+          min-width: 0;
+          height: auto;
+          padding: 12px;
+          border-radius: 20px;
+          overflow: visible;
+        }
+
+        /* Menus flow in the page (scrollable) instead of a fixed-height box. */
+        .menu-screen {
+          position: relative;
+          inset: auto;
+        }
+
+        .menu-screen.menu-leave {
+          position: absolute;
+          inset: 12px;
+        }
+
+        /* Mode and about menus get the whole screen; the empty board waits. */
+        .game-container:has(#mode-menu:is(.menu-active, .menu-enter)) .game-board,
+        .game-container:has(#about-menu:is(.menu-active, .menu-enter)) .game-board {
+          display: none;
+        }
+
+        /* Results first, final board below. */
+        .game-container:has(#end-menu:is(.menu-active, .menu-enter)) .ui-panel {
+          order: -1;
+        }
+
+        #mode-menu,
+        #about-menu,
+        #end-menu {
+          padding: 14px 6px;
+        }
+
+        #mode-menu {
+          min-height: var(--menu-min-h);
+          gap: 28px;
+        }
+
+        .game-title {
+          font-size: clamp(2.2rem, 11vw, 3rem);
+        }
+
+        .mode-btn {
+          min-width: 0;
+        }
+
+        #about-menu,
+        #end-menu {
+          overflow: visible;
+        }
+
+        .about-actions {
+          padding-bottom: 12px;
+          background: linear-gradient(
+            to top,
+            rgba(26, 33, 54, 0.98) 60%,
+            transparent
+          );
+        }
+
+        .keymap-strip {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        #gameplay-ui {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr);
+          grid-template-areas:
+            "hold stats"
+            "touch touch"
+            "actions actions";
+          align-items: center;
+          gap: 8px 12px;
+          padding: 0;
+        }
+
+        .gameplay-title {
+          display: none;
+        }
+
+        .gameplay-top {
+          grid-area: stats;
+        }
+
+        .gameplay-middle {
+          grid-area: hold;
+          display: block;
+          width: auto;
+          margin: 0;
+        }
+
+        .gameplay-column-character {
+          display: none;
+        }
+
+        .gameplay-column-hold {
+          gap: 0;
+        }
+
+        .hold-preview-canvas-large {
+          width: var(--card-size);
+          border-radius: 10px;
+          box-shadow: inset 0 0 0 1px rgba(255, 244, 218, 0.16);
+        }
+
+        .hold-title {
+          margin-top: 4px;
+          font-size: 0.6rem;
+          white-space: nowrap;
+        }
+
+        .score-header {
+          gap: 8px;
+        }
+
+        .metric-card {
+          padding: 4px 8px;
+          border-radius: 10px;
+        }
+
+        .score-label {
+          font-size: 0.6rem;
+          letter-spacing: 0.08em;
+        }
+
+        .metric-value {
+          font-size: 1.05rem;
+        }
+
+        .health-bar-main {
+          height: 8px;
+          margin: 6px 0 0;
+          max-width: none;
+        }
+
+        .touch-controls {
+          grid-area: touch;
+          max-width: none;
+          gap: 12px;
+        }
+
+        .touch-btn {
+          height: 56px;
+        }
+
+        .gameplay-actions-row {
+          grid-area: actions;
+          gap: 10px;
+          max-width: none;
+        }
+
+        .action-slot {
+          max-width: none;
+        }
+
+        .gameplay-btn-large {
+          padding: 9px 12px;
+          font-size: 0.82rem;
+          border-radius: 20px;
         }
       }
     </style>
@@ -886,9 +1380,21 @@
             </div>
           </div>
           <div class="keymap-strip">
-            <div class="key-chip"><strong>Move</strong>Left / Right Arrows</div>
-            <div class="key-chip"><strong>Rotate</strong>Up Arrow</div>
-            <div class="key-chip"><strong>Drop</strong>Down Arrow</div>
+            <div class="key-chip">
+              <strong>Move</strong
+              ><span class="key-hint-keys">Left / Right Arrows</span
+              ><span class="key-hint-touch">Left / Right Buttons</span>
+            </div>
+            <div class="key-chip">
+              <strong>Rotate</strong
+              ><span class="key-hint-keys">Up Arrow</span
+              ><span class="key-hint-touch">Rotate Button</span>
+            </div>
+            <div class="key-chip">
+              <strong>Drop</strong
+              ><span class="key-hint-keys">Down Arrow</span
+              ><span class="key-hint-touch">Down Button</span>
+            </div>
             <div class="key-chip"><strong>Hold</strong>Hold Button</div>
           </div>
           <div class="about-actions">
@@ -923,7 +1429,7 @@
           <!-- Middle section: Two columns for character and hold -->
           <div class="gameplay-middle">
             <!-- Left column: Character -->
-            <div class="gameplay-column-centered">
+            <div class="gameplay-column-centered gameplay-column-character">
               <!-- Character Image Section - Shows monster or tree based on mode -->
               <div
                 id="character-section"
@@ -948,7 +1454,7 @@
             </div>
 
             <!-- Right column: Hold preview -->
-            <div class="gameplay-column-centered">
+            <div class="gameplay-column-centered gameplay-column-hold">
               <!-- Hold Preview Section - Shows held block -->
               <div id="hold-preview-section" class="hold-card hold-card-wide">
                 <canvas
@@ -959,6 +1465,62 @@
                 ></canvas>
                 <h3 class="hold-title hold-title-large">Held Block</h3>
               </div>
+            </div>
+          </div>
+
+          <!-- Touch controls: shown on touch devices and narrow screens -->
+          <div class="touch-controls" role="group" aria-label="Piece controls">
+            <div class="touch-cluster">
+              <button
+                type="button"
+                class="game-button touch-btn"
+                data-touch-action="left"
+                data-repeat
+                aria-label="Move left"
+                title="Move left"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M15 5l-7 7 7 7" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="game-button touch-btn"
+                data-touch-action="right"
+                data-repeat
+                aria-label="Move right"
+                title="Move right"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+            <div class="touch-cluster">
+              <button
+                type="button"
+                class="game-button touch-btn"
+                data-touch-action="down"
+                data-repeat
+                aria-label="Soft drop"
+                title="Soft drop"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 4v15M6 13l6 6 6-6" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="game-button touch-btn"
+                data-touch-action="rotate"
+                aria-label="Rotate piece"
+                title="Rotate piece"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" />
+                  <path d="M19.5 4v4.5H15" />
+                </svg>
+              </button>
             </div>
           </div>
 
@@ -976,7 +1538,9 @@
             </div>
             <div class="action-slot">
               <button
+                type="button"
                 class="game-button gameplay-btn gameplay-btn-large"
+                id="surrender-button"
                 onclick="quit = true"
               >
                 Surrender
