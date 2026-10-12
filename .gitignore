@@ -1,0 +1,12 @@
+# macOS
+.DS_Store
+
+# JetBrains IDEs
+.idea/
+
+# Editors
+.vscode/
+*.swp
+
+# Dependencies and local tooling
+node_modules/
