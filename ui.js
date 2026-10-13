@@ -133,6 +133,7 @@ function showGameplayUI() {
     holdButton.textContent = "Hold";
   }
 
+  lastHudState = null;
   updateGameplayUI();
 }
 
@@ -235,31 +236,11 @@ function startGame() {
   startGameLoop();
 }
 
-function endGame() {
-  quit = true;
-}
-
-function restartGame() {
-  score = 0;
-  heldBlock = null;
-  heldPoints = [];
-  hold = false; // Reset hold state
-  blocks = [];
-  squares = [];
-  currPoints = [];
-  currBlock = null;
-  gameplayUIShown = false;
-  stopGameLoop();
-  modeScreen = true;
-  showModeMenu();
-}
-
 function resetRunState() {
   score = 0;
   heldBlock = null;
   heldPoints = [];
   hold = false;
-  blocks = [];
   squares = [];
   currPoints = [];
   currBlock = null;
@@ -312,25 +293,15 @@ function holdBlock() {
   if (!heldBlock) {
     heldBlock = { ...currBlock };
     heldBlock.rotation = 0;
-    blocks.pop();
     pushBlock();
   } else {
     const swappedType = heldBlock.type;
     heldBlock = { ...currBlock };
     heldBlock.rotation = 0;
-    spawnBlockOfType(swappedType);
+    pushBlock(swappedType);
   }
 
-  heldPoints = [];
-  createBlock(
-    heldBlock,
-    heldPoints,
-    heldBlock.type,
-    heldBlock.x,
-    heldBlock.y,
-    heldBlock.color,
-    heldBlock.rotation
-  );
+  heldPoints = getBlockPoints(heldBlock.type, heldBlock.x, heldBlock.y, heldBlock.rotation);
 
   hold = true;
   if (holdButton) {
@@ -350,7 +321,32 @@ function holdBlock() {
   }
 }
 
+const ENEMIES = {
+  1: {
+    title: "Light Mode",
+    label: "Enemy Health",
+    image: "assets/monster_saga.png",
+    alt: "Demon Vortax",
+    name: "Ancient Demon Vortax",
+  },
+  2: {
+    title: "Dark Mode",
+    label: "Tree Aura",
+    image: "assets/tree_saga.png",
+    alt: "Aura-Giving Tree",
+    name: "Sacred Aura-Giving Tree",
+  },
+};
+let lastHudState = null;
+
 function updateGameplayUI() {
+  // menus() calls this every frame; only touch the DOM when something changed.
+  const hudState = `${mode}|${score}|${enemyHealth}`;
+  if (hudState === lastHudState) {
+    return;
+  }
+  lastHudState = hudState;
+
   const gameTitle = document.getElementById("game-title");
   const objectiveLabel = document.getElementById("objective-label");
   const objectiveValue = document.getElementById("objective-value");
@@ -363,51 +359,30 @@ function updateGameplayUI() {
   const characterName = document.getElementById("character-name");
 
   applyModeTheme();
+  performanceLabel.textContent = "Score";
+  performanceValue.textContent = score;
 
-  if (mode === 0) {
-    // Classic Mode
+  const enemy = ENEMIES[mode];
+  if (!enemy) {
     gameTitle.textContent = "Classic Mode";
     objectiveLabel.textContent = "Objective";
     objectiveValue.textContent = "Survive";
-    performanceLabel.textContent = "Score";
-    performanceValue.textContent = score;
     healthBar.style.display = "none";
     characterSection.style.display = "none";
-  } else if (mode === 1) {
-    // Light Mode - Show monster (enemy)
-    gameTitle.textContent = "Light Mode";
-    objectiveLabel.textContent = "Enemy Health";
-    const health = Math.max(0, enemyHealth);
-    const healthPercent = Math.min(100, (health / OBJECTIVE_SCORE) * 100);
-    objectiveValue.textContent = health;
-    performanceLabel.textContent = "Score";
-    performanceValue.textContent = score;
-    healthBar.style.display = "block";
-    healthFill.style.width = `${healthPercent}%`;
-
-    // Show monster character
-    characterSection.style.display = "block";
-    characterImage.src = "assets/monster_saga.png";
-    characterImage.alt = "Demon Vortax";
-    characterName.textContent = "Ancient Demon Vortax";
-  } else if (mode === 2) {
-    // Dark Mode - Show tree (enemy)
-    gameTitle.textContent = "Dark Mode";
-    objectiveLabel.textContent = "Tree Aura";
-    const aura = Math.max(0, enemyHealth);
-    const auraPercent = Math.min(100, (aura / OBJECTIVE_SCORE) * 100);
-    objectiveValue.textContent = aura;
-    performanceLabel.textContent = "Score";
-    performanceValue.textContent = score;
-    healthBar.style.display = "block";
-    healthFill.style.width = `${auraPercent}%`;
-
-    // Show tree character
-    characterSection.style.display = "block";
-    characterImage.src = "assets/tree_saga.png";
-    characterImage.alt = "Aura-Giving Tree";
-    characterName.textContent = "Sacred Aura-Giving Tree";
+    return;
   }
+
+  const health = Math.max(0, enemyHealth);
+  gameTitle.textContent = enemy.title;
+  objectiveLabel.textContent = enemy.label;
+  objectiveValue.textContent = health;
+  healthBar.style.display = "block";
+  healthFill.style.width = `${Math.min(100, (health / OBJECTIVE_SCORE) * 100)}%`;
+
+  characterSection.style.display = "block";
+  characterImage.src = enemy.image;
+  characterImage.alt = enemy.alt;
+  characterName.textContent = enemy.name;
 }
 
 // Main menu system

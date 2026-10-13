@@ -16,73 +16,154 @@ const BOARD_HEIGHT = 800;
 let quit = false;
 let hold = false;
 
-let classicColors = [
-  "#00D4FF", // Bright cyan
-  "#4A90E2", // Modern blue
-  "#FF6B35", // Vibrant orange
-  "#FFD93D", // Bright yellow
-  "#6BCF7F", // Fresh green
-  "#9B59B6", // Modern purple
-  "#E74C3C", // Bright red
+// Each piece type's colour (used in Classic mode) and the cells of its four
+// rotations, as [x, y] offsets from the piece's pivot. A cell's x is its left
+// edge and its y is its bottom edge. Index 0 is unused; types are 1-10.
+const PIECES = [
+  null,
+  // 1: I
+  {
+    color: "#00D4FF",
+    rotations: [
+      [[-80, 0], [-40, 0], [0, 0], [40, 0]],
+      [[0, 0], [0, -40], [0, 40], [0, 80]],
+      [[-80, 40], [-40, 40], [0, 40], [40, 40]],
+      [[-40, 0], [-40, -40], [-40, 40], [-40, 80]],
+    ],
+  },
+  // 2: J
+  {
+    color: "#4A90E2",
+    rotations: [
+      [[-20, 20], [-60, 20], [-60, -20], [20, 20]],
+      [[-20, 20], [-20, -20], [20, -20], [-20, 60]],
+      [[-20, 20], [-60, 20], [20, 20], [20, 60]],
+      [[-20, 20], [-20, -20], [-20, 60], [-60, 60]],
+    ],
+  },
+  // 3: L
+  {
+    color: "#FF6B35",
+    rotations: [
+      [[-20, 20], [-60, 20], [20, 20], [20, -20]],
+      [[-20, 20], [-20, -20], [-20, 60], [20, 60]],
+      [[-20, 20], [-60, 20], [-60, 60], [20, 20]],
+      [[-20, 20], [-20, -20], [-60, -20], [-20, 60]],
+    ],
+  },
+  // 4: O
+  {
+    color: "#FFD93D",
+    rotations: [
+      [[-40, 0], [-40, 40], [0, 0], [0, 40]],
+      [[-40, 0], [-40, 40], [0, 0], [0, 40]],
+      [[-40, 0], [-40, 40], [0, 0], [0, 40]],
+      [[-40, 0], [-40, 40], [0, 0], [0, 40]],
+    ],
+  },
+  // 5: S
+  {
+    color: "#6BCF7F",
+    rotations: [
+      [[-20, 20], [-60, 20], [-20, -20], [20, -20]],
+      [[-20, 20], [-20, -20], [20, 20], [20, 60]],
+      [[-20, 20], [-60, 60], [-20, 60], [20, 20]],
+      [[-20, 20], [-60, 20], [-60, -20], [-20, 60]],
+    ],
+  },
+  // 6: T
+  {
+    color: "#9B59B6",
+    rotations: [
+      [[-20, 20], [-60, 20], [20, 20], [-20, -20]],
+      [[-20, 20], [-20, -20], [20, 20], [-20, 60]],
+      [[-20, 20], [-60, 20], [20, 20], [-20, 60]],
+      [[-20, 20], [-20, -20], [-20, 60], [-60, 20]],
+    ],
+  },
+  // 7: Z
+  {
+    color: "#E74C3C",
+    rotations: [
+      [[-20, 20], [-60, -20], [-20, -20], [20, 20]],
+      [[-20, 20], [-20, 60], [20, 20], [20, -20]],
+      [[-20, 20], [-60, 20], [-20, 60], [20, 60]],
+      [[-20, 20], [-20, -20], [-60, 20], [-60, 60]],
+    ],
+  },
+  // 8: single cell
+  {
+    color: "#FF69B4",
+    rotations: [
+      [[-20, 20]],
+      [[-20, 20]],
+      [[-20, 20]],
+      [[-20, 20]],
+    ],
+  },
+  // 9: domino
+  {
+    color: "#D2B48C",
+    rotations: [
+      [[-40, 0], [0, 0]],
+      [[0, 0], [0, 40]],
+      [[-40, 40], [0, 40]],
+      [[-40, 0], [-40, 40]],
+    ],
+  },
+  // 10: 3-cell L
+  {
+    color: "#8B4513",
+    rotations: [
+      [[-20, 20], [-20, -20], [-60, 20]],
+      [[-20, 20], [-20, -20], [20, 20]],
+      [[-20, 20], [-20, 60], [20, 20]],
+      [[-20, 20], [-20, 60], [-60, 20]],
+    ],
+  },
 ];
 
-let newColors = [
-  "#FF69B4", // Hot pink
-  "#D2B48C", // Tan
-  "#8B4513", // Saddle brown
-  "#2E8B57", // Sea green
+// Board and piece colours per mode (0 Classic, 1 Light, 2 Dark). A null
+// pieceFill or holdFill means each piece keeps its own colour.
+const PALETTES = [
+  {
+    boardFill: "rgba(39, 48, 73, 1)",
+    gridMajor: "rgba(245, 231, 201, 0.16)",
+    gridMinor: "rgba(245, 231, 201, 0.08)",
+    pieceFill: null,
+    pieceStroke: "rgba(236, 226, 205, 0.34)",
+    holdFill: null,
+    holdStroke: "rgba(245, 224, 187, 0.52)",
+    holdEmpty: "rgba(244, 227, 196, 0.66)",
+  },
+  {
+    boardFill: "rgba(58, 68, 96, 1)",
+    gridMajor: "rgba(244, 236, 214, 0.18)",
+    gridMinor: "rgba(244, 236, 214, 0.09)",
+    pieceFill: "rgba(191, 182, 163, 0.96)",
+    pieceStroke: "rgba(241, 232, 211, 0.36)",
+    holdFill: "rgba(199, 189, 170, 0.94)",
+    holdStroke: "rgba(238, 227, 203, 0.36)",
+    holdEmpty: "rgba(218, 209, 188, 0.56)",
+  },
+  {
+    boardFill: "rgba(29, 36, 52, 1)",
+    gridMajor: "rgba(159, 177, 206, 0.18)",
+    gridMinor: "rgba(159, 177, 206, 0.09)",
+    pieceFill: "rgba(95, 110, 132, 0.95)",
+    pieceStroke: "rgba(188, 203, 228, 0.34)",
+    holdFill: "rgba(102, 118, 140, 0.95)",
+    holdStroke: "rgba(177, 194, 220, 0.34)",
+    holdEmpty: "rgba(138, 154, 179, 0.5)",
+  },
 ];
 
-const FALLBACK_THEME = {
-  boardTop: "rgba(39, 48, 73, 1)",
-  boardMid: "rgba(39, 48, 73, 1)",
-  boardBottom: "rgba(39, 48, 73, 1)",
-  gridMajor: "rgba(245, 231, 201, 0.16)",
-  gridMinor: "rgba(245, 231, 201, 0.08)",
-  pieceStroke: "rgba(236, 226, 205, 0.34)",
-  pieceFill: "rgba(228, 194, 139, 0.93)",
-  pieceHighlight: "rgba(255, 246, 220, 0.2)",
-  holdFill: "rgba(226, 197, 146, 0.92)",
-  holdStroke: "rgba(245, 224, 187, 0.52)",
-  holdEmpty: "rgba(244, 227, 196, 0.66)",
-  fontUI: "\"Plus Jakarta Sans\", sans-serif",
-};
-
-function getModeTheme() {
-  return FALLBACK_THEME;
-}
+const UI_FONT = "\"Plus Jakarta Sans\", sans-serif";
 
 function getModePalette() {
-  if (mode === 1) {
-    return {
-      boardFill: "rgba(58, 68, 96, 1)",
-      gridMajor: "rgba(244, 236, 214, 0.18)",
-      gridMinor: "rgba(244, 236, 214, 0.09)",
-      pieceFill: "rgba(191, 182, 163, 0.96)",
-      pieceStroke: "rgba(241, 232, 211, 0.36)",
-      holdFill: "rgba(199, 189, 170, 0.94)",
-      holdStroke: "rgba(238, 227, 203, 0.36)",
-      holdEmpty: "rgba(218, 209, 188, 0.56)",
-    };
-  }
-
-  if (mode === 2) {
-    return {
-      boardFill: "rgba(29, 36, 52, 1)",
-      gridMajor: "rgba(159, 177, 206, 0.18)",
-      gridMinor: "rgba(159, 177, 206, 0.09)",
-      pieceFill: "rgba(95, 110, 132, 0.95)",
-      pieceStroke: "rgba(188, 203, 228, 0.34)",
-      holdFill: "rgba(102, 118, 140, 0.95)",
-      holdStroke: "rgba(177, 194, 220, 0.34)",
-      holdEmpty: "rgba(138, 154, 179, 0.5)",
-    };
-  }
-
-  return null;
+  return PALETTES[mode];
 }
 
-let blocks = [];
 let squares = [];
 let currPoints = [];
 let heldPoints = [];
@@ -414,48 +495,8 @@ function setupCanvasResolution() {
 
 setupCanvasResolution();
 
-function startBoard() {
-  let canvas = /** @type {HTMLCanvasElement} */ (
-    document.getElementById("myCanvas")
-  );
-  let context = canvas.getContext("2d");
-  if (context) {
-    applyCanvasTransform(context, canvas, BOARD_WIDTH, BOARD_HEIGHT);
-    const theme = getModeTheme();
-    const palette = getModePalette();
-    context.fillStyle = palette ? palette.boardFill : theme.boardTop;
-    context.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
-
-    context.lineWidth = 0.8;
-
-    for (let i = 0; i <= 10; i++) {
-      context.strokeStyle = i % 2 === 0
-        ? (palette ? palette.gridMajor : theme.gridMajor)
-        : (palette ? palette.gridMinor : theme.gridMinor);
-      context.beginPath();
-      context.moveTo(i * BLOCK_SIZE, 0);
-      context.lineTo(i * BLOCK_SIZE, BOARD_HEIGHT);
-      context.stroke();
-    }
-
-    for (let i = 0; i <= 20; i++) {
-      context.strokeStyle = i % 2 === 0
-        ? (palette ? palette.gridMajor : theme.gridMajor)
-        : (palette ? palette.gridMinor : theme.gridMinor);
-      context.beginPath();
-      context.moveTo(0, i * BLOCK_SIZE);
-      context.lineTo(BOARD_WIDTH, i * BLOCK_SIZE);
-      context.stroke();
-    }
-  }
-}
-
-function pushBlock() {
-  let type = Math.floor(Math.random() * 10) + 1;
-  const nextBlock = createSpawnBlock(type);
-  blocks.push(nextBlock);
-  currBlock = nextBlock;
-
+function pushBlock(type = Math.floor(Math.random() * 10) + 1) {
+  currBlock = createSpawnBlock(type);
   if (!isValidBlockState(currBlock, currBlock.x, currBlock.y, currBlock.rotation)) {
     quit = true;
   }
@@ -465,8 +506,7 @@ function getSpawnXs(type) {
   // Pivot x values (half-cell steps) where every rotation-0 cell sits on the grid inside the board.
   const spawnXs = [];
   for (let x = -BLOCK_SIZE * 2; x <= BOARD_WIDTH + BLOCK_SIZE * 2; x += BLOCK_SIZE / 2) {
-    const points = [];
-    createBlock({}, points, type, x, 0, 0, 0);
+    const points = getBlockPoints(type, x, 0, 0);
     const fits = points.every(
       (point) =>
         point.x % BLOCK_SIZE === 0 &&
@@ -481,41 +521,14 @@ function getSpawnXs(type) {
 }
 
 function createSpawnBlock(type) {
-  let color = 0;
-  let y = 0;
-  let rightX = 0;
-  let leftX = 0;
-  let topY = 0;
-  let bottomY = 0;
-  let rot = 0;
   const spawnXs = getSpawnXs(type);
-  const x = spawnXs[Math.floor(Math.random() * spawnXs.length)];
   return {
     type: type,
-    rotation: rot,
-    color: color,
-    x: x,
-    y: y,
-    leftX: leftX,
-    rightX: rightX,
-    topY: topY,
-    bottomY: bottomY,
+    rotation: 0,
+    x: spawnXs[Math.floor(Math.random() * spawnXs.length)],
+    y: 0,
     down: false,
   };
-}
-
-function spawnBlockOfType(type) {
-  const nextBlock = createSpawnBlock(type);
-  currBlock = nextBlock;
-  if (blocks.length > 0) {
-    blocks[blocks.length - 1] = nextBlock;
-  } else {
-    blocks.push(nextBlock);
-  }
-
-  if (!isValidBlockState(currBlock, currBlock.x, currBlock.y, currBlock.rotation)) {
-    quit = true;
-  }
 }
 
 function squaresOverlap(ax, ay, bx, by) {
@@ -537,17 +550,7 @@ function hasToppedOut() {
 }
 
 function isValidBlockState(block, x, y, rotation) {
-  const testBlock = { ...block };
-  const testPoints = [];
-  createBlock(
-    testBlock,
-    testPoints,
-    block.type,
-    x,
-    y,
-    block.color,
-    rotation
-  );
+  const testPoints = getBlockPoints(block.type, x, y, rotation);
 
   for (let i = 0; i < testPoints.length; i++) {
     const point = testPoints[i];
@@ -571,307 +574,13 @@ function isValidBlockState(block, x, y, rotation) {
   return true;
 }
 
-function createBlock(block, blockPoints, type, x, y, color, rot) {
-  if (type == 1) {
-    block.color = classicColors[0];
-    if (rot == 0) {
-      blockPoints.push({ x: x - 80, y: y, color: block.color });
-      blockPoints.push({ x: x - 40, y: y, color: block.color });
-      blockPoints.push({ x: x, y: y, color: block.color });
-      blockPoints.push({ x: x + 40, y: y, color: block.color });
-      block.leftX = x - 80;
-      block.rightX = x + 80;
-      block.topY = y - 40;
-      block.bottomY = y;
-    } else if (rot == 1) {
-      blockPoints.push({ x: x, y: y, color: block.color });
-      blockPoints.push({ x: x, y: y - 40, color: block.color });
-      blockPoints.push({ x: x, y: y + 40, color: block.color });
-      blockPoints.push({ x: x, y: y + 80, color: block.color });
-      block.leftX = x;
-      block.rightX = x + 40;
-      block.topY = y - 80;
-      block.bottomY = y + 80;
-    } else if (rot == 2) {
-      blockPoints.push({ x: x - 80, y: y + 40, color: block.color });
-      blockPoints.push({ x: x - 40, y: y + 40, color: block.color });
-      blockPoints.push({ x: x, y: y + 40, color: block.color });
-      blockPoints.push({ x: x + 40, y: y + 40, color: block.color });
-      block.leftX = x - 80;
-      block.rightX = x + 80;
-      block.topY = y;
-      block.bottomY = y + 40;
-    } else if (rot == 3) {
-      blockPoints.push({ x: x - 40, y: y, color: block.color });
-      blockPoints.push({ x: x - 40, y: y - 40, color: block.color });
-      blockPoints.push({ x: x - 40, y: y + 40, color: block.color });
-      blockPoints.push({ x: x - 40, y: y + 80, color: block.color });
-      block.leftX = x - 40;
-      block.rightX = x;
-      block.topY = y - 80;
-      block.bottomY = y + 80;
-    }
-  } else if (type == 2) {
-    block.color = classicColors[1];
-    blockPoints.push({ x: x - 20, y: y + 20, color: block.color });
-    if (rot == 0) {
-      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
-      blockPoints.push({ x: x - 60, y: y - 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 60;
-      block.topY = y - 60;
-      block.bottomY = y + 20;
-    } else if (rot == 1) {
-      blockPoints.push({ x: x - 20, y: y - 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y - 20, color: block.color });
-      blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      block.leftX = x - 20;
-      block.rightX = x + 60;
-      block.topY = y - 60;
-      block.bottomY = y + 60;
-    } else if (rot == 2) {
-      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 60, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 60;
-      block.topY = y - 20;
-      block.bottomY = y + 60;
-    } else if (rot == 3) {
-      blockPoints.push({ x: x - 20, y: y - 20, color: block.color });
-      blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      blockPoints.push({ x: x - 60, y: y + 60, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 20;
-      block.topY = y - 60;
-      block.bottomY = y + 60;
-    }
-  } else if (type == 3) {
-    block.color = classicColors[2];
-    blockPoints.push({ x: x - 20, y: y + 20, color: block.color });
-    if (rot == 0) {
-      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y - 20, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 60;
-      block.topY = y - 60;
-      block.bottomY = y + 20;
-    } else if (rot == 1) {
-      blockPoints.push({ x: x - 20, y: y - 20, color: block.color });
-      blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 60, color: block.color });
-      block.leftX = x - 20;
-      block.rightX = x + 60;
-      block.topY = y - 60;
-      block.bottomY = y + 60;
-    } else if (rot == 2) {
-      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
-      blockPoints.push({ x: x - 60, y: y + 60, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 60;
-      block.topY = y - 20;
-      block.bottomY = y + 60;
-    } else if (rot == 3) {
-      blockPoints.push({ x: x - 20, y: y - 20, color: block.color });
-      blockPoints.push({ x: x - 60, y: y - 20, color: block.color });
-      blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 20;
-      block.topY = y - 60;
-      block.bottomY = y + 60;
-    }
-  } else if (type == 4) {
-    block.color = classicColors[3];
-    blockPoints.push({ x: x - 40, y: y, color: block.color });
-    blockPoints.push({ x: x - 40, y: y + 40, color: block.color });
-    blockPoints.push({ x: x, y: y, color: block.color });
-    blockPoints.push({ x: x, y: y + 40, color: block.color });
-    block.leftX = x - 40;
-    block.rightX = x + 40;
-    block.topY = y - 40;
-    block.bottomY = y + 40;
-  } else if (type == 5) {
-    block.color = classicColors[4];
-    blockPoints.push({ x: x - 20, y: y + 20, color: block.color });
-    if (rot == 0) {
-      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
-      blockPoints.push({ x: x - 20, y: y - 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y - 20, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 60;
-      block.topY = y - 60;
-      block.bottomY = y + 20;
-    } else if (rot == 1) {
-      blockPoints.push({ x: x - 20, y: y - 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 60, color: block.color });
-      block.leftX = x - 20;
-      block.rightX = x + 60;
-      block.topY = y - 60;
-      block.bottomY = y + 60;
-    } else if (rot == 2) {
-      blockPoints.push({ x: x - 60, y: y + 60, color: block.color });
-      blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 60;
-      block.topY = y - 20;
-      block.bottomY = y + 60;
-    } else if (rot == 3) {
-      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
-      blockPoints.push({ x: x - 60, y: y - 20, color: block.color });
-      blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 20;
-      block.topY = y - 60;
-      block.bottomY = y + 60;
-    }
-  } else if (type == 6) {
-    block.color = classicColors[5];
-    blockPoints.push({ x: x - 20, y: y + 20, color: block.color });
-    if (rot == 0) {
-      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
-      blockPoints.push({ x: x - 20, y: y - 20, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 60;
-      block.topY = y - 60;
-      block.bottomY = y + 20;
-    } else if (rot == 1) {
-      blockPoints.push({ x: x - 20, y: y - 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
-      blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      block.leftX = x - 20;
-      block.rightX = x + 60;
-      block.topY = y - 60;
-      block.bottomY = y + 60;
-    } else if (rot == 2) {
-      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
-      blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 60;
-      block.topY = y - 20;
-      block.bottomY = y + 60;
-    } else if (rot == 3) {
-      blockPoints.push({ x: x - 20, y: y - 20, color: block.color });
-      blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 20;
-      block.topY = y - 60;
-      block.bottomY = y + 60;
-    }
-  } else if (type == 7) {
-    block.color = classicColors[6];
-    blockPoints.push({ x: x - 20, y: y + 20, color: block.color });
-    if (rot == 0) {
-      blockPoints.push({ x: x - 60, y: y - 20, color: block.color });
-      blockPoints.push({ x: x - 20, y: y - 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 60;
-      block.topY = y - 60;
-      block.bottomY = y + 20;
-    } else if (rot == 1) {
-      blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y - 20, color: block.color });
-      block.leftX = x - 20;
-      block.rightX = x + 60;
-      block.topY = y - 60;
-      block.bottomY = y + 60;
-    } else if (rot == 2) {
-      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
-      blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 60, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 60;
-      block.topY = y - 20;
-      block.bottomY = y + 60;
-    } else if (rot == 3) {
-      blockPoints.push({ x: x - 20, y: y - 20, color: block.color });
-      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
-      blockPoints.push({ x: x - 60, y: y + 60, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 20;
-      block.topY = y - 60;
-      block.bottomY = y + 60;
-    }
-  } else if (type == 8) {
-    block.color = newColors[0];
-    blockPoints.push({ x: x - 20, y: y + 20, color: block.color });
-    block.leftX = x - 20;
-    block.rightX = x + 20;
-    block.topY = y - 20;
-    block.bottomY = y + 20;
-  } else if (type == 9) {
-    block.color = newColors[1];
-    if (rot == 0) {
-      blockPoints.push({ x: x - 40, y: y, color: block.color });
-      blockPoints.push({ x: x, y: y, color: block.color });
-      block.leftX = x - 40;
-      block.rightX = x + 40;
-      block.topY = y - 40;
-      block.bottomY = y;
-    } else if (rot == 1) {
-      blockPoints.push({ x: x, y: y, color: block.color });
-      blockPoints.push({ x: x, y: y + 40, color: block.color });
-      block.leftX = x;
-      block.rightX = x + 40;
-      block.topY = y - 40;
-      block.bottomY = y + 40;
-    } else if (rot == 2) {
-      blockPoints.push({ x: x - 40, y: y + 40, color: block.color });
-      blockPoints.push({ x: x, y: y + 40, color: block.color });
-      block.leftX = x - 40;
-      block.rightX = x + 40;
-      block.topY = y;
-      block.bottomY = y + 40;
-    } else if (rot == 3) {
-      blockPoints.push({ x: x - 40, y: y, color: block.color });
-      blockPoints.push({ x: x - 40, y: y + 40, color: block.color });
-      block.leftX = x - 40;
-      block.rightX = x;
-      block.topY = y - 40;
-      block.bottomY = y + 40;
-    }
-  } else if (type == 10) {
-    block.color = newColors[2];
-    blockPoints.push({ x: x - 20, y: y + 20, color: block.color });
-    if (rot == 1) {
-      blockPoints.push({ x: x - 20, y: y - 20, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
-      block.leftX = x - 20;
-      block.rightX = x + 60;
-      block.topY = y - 60;
-      block.bottomY = y + 20;
-    } else if (rot == 0) {
-      blockPoints.push({ x: x - 20, y: y - 20, color: block.color });
-      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 20;
-      block.topY = y - 60;
-      block.bottomY = y + 20;
-    } else if (rot == 2) {
-      blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      blockPoints.push({ x: x + 20, y: y + 20, color: block.color });
-      block.leftX = x - 20;
-      block.rightX = x + 60;
-      block.topY = y - 20;
-      block.bottomY = y + 60;
-    } else if (rot == 3) {
-      blockPoints.push({ x: x - 20, y: y + 60, color: block.color });
-      blockPoints.push({ x: x - 60, y: y + 20, color: block.color });
-      block.leftX = x - 60;
-      block.rightX = x + 20;
-      block.topY = y - 20;
-      block.bottomY = y + 60;
-    }
-  }
+function getBlockPoints(type, x, y, rotation) {
+  const piece = PIECES[type];
+  return piece.rotations[rotation].map(([dx, dy]) => ({
+    x: x + dx,
+    y: y + dy,
+    color: piece.color,
+  }));
 }
 
 function drawHoldPreview() {
@@ -886,39 +595,21 @@ function drawHoldPreview() {
   // the (devicePixelRatio-scaled) backing store.
   const previewSize = HOLD_PREVIEW_SIZE;
   applyCanvasTransform(previewContext, previewCanvas, previewSize, previewSize);
-  const theme = getModeTheme();
   const palette = getModePalette();
 
-  if (palette) {
-    previewContext.fillStyle = palette.boardFill;
-  } else {
-    let previewGradient = previewContext.createLinearGradient(
-      0,
-      0,
-      0,
-      previewSize
-    );
-    previewGradient.addColorStop(0, theme.boardTop);
-    previewGradient.addColorStop(0.52, theme.boardMid);
-    previewGradient.addColorStop(1, theme.boardBottom);
-    previewContext.fillStyle = previewGradient;
-  }
+  previewContext.fillStyle = palette.boardFill;
   previewContext.fillRect(0, 0, previewSize, previewSize);
 
   previewContext.lineWidth = 0.6;
   for (let i = 0; i <= previewSize / BLOCK_SIZE; i++) {
-    previewContext.strokeStyle = i % 2 === 0
-      ? (palette ? palette.gridMajor : theme.gridMajor)
-      : (palette ? palette.gridMinor : theme.gridMinor);
+    previewContext.strokeStyle = i % 2 === 0 ? palette.gridMajor : palette.gridMinor;
     previewContext.beginPath();
     previewContext.moveTo(i * BLOCK_SIZE, 0);
     previewContext.lineTo(i * BLOCK_SIZE, previewSize);
     previewContext.stroke();
   }
   for (let i = 0; i <= previewSize / BLOCK_SIZE; i++) {
-    previewContext.strokeStyle = i % 2 === 0
-      ? (palette ? palette.gridMajor : theme.gridMajor)
-      : (palette ? palette.gridMinor : theme.gridMinor);
+    previewContext.strokeStyle = i % 2 === 0 ? palette.gridMajor : palette.gridMinor;
     previewContext.beginPath();
     previewContext.moveTo(0, i * BLOCK_SIZE);
     previewContext.lineTo(previewSize, i * BLOCK_SIZE);
@@ -930,8 +621,8 @@ function drawHoldPreview() {
 
   // If there's no held block, show empty preview
   if (!heldBlock || heldPoints.length === 0) {
-    previewContext.fillStyle = palette ? palette.holdEmpty : theme.holdEmpty;
-    previewContext.font = `600 16px ${theme.fontUI}`;
+    previewContext.fillStyle = palette.holdEmpty;
+    previewContext.font = `600 16px ${UI_FONT}`;
     previewContext.textAlign = "center";
     previewContext.fillText(
       "No piece held",
@@ -971,18 +662,8 @@ function drawHoldPreview() {
     const x = (point.x - minX) * scale + offsetX;
     const y = (point.y - minY) * scale + offsetY;
 
-    // Use the same color logic as the main game
-    let fillColor, strokeColor;
-    if (mode == 0) {
-      fillColor = point.color;
-      strokeColor = theme.holdStroke;
-    } else {
-      fillColor = palette ? palette.holdFill : theme.holdFill;
-      strokeColor = palette ? palette.holdStroke : theme.holdStroke;
-    }
-
-    previewContext.fillStyle = fillColor;
-    previewContext.strokeStyle = strokeColor;
+    previewContext.fillStyle = palette.holdFill || point.color;
+    previewContext.strokeStyle = palette.holdStroke;
     previewContext.lineWidth = 1.2;
 
     const blockSize = BLOCK_SIZE * scale;
@@ -1012,20 +693,18 @@ function game(timestamp) {
   const step = Math.floor(fallProgress);
   fallProgress -= step;
 
-  function drawBoard(context, theme) {
+  function drawBoard(context) {
     // Re-apply the logical 400x800 transform every frame (other code may
     // reset it, e.g. to clear the canvas between runs).
     applyCanvasTransform(context, canvas, BOARD_WIDTH, BOARD_HEIGHT);
     const palette = getModePalette();
-    context.fillStyle = palette ? palette.boardFill : theme.boardTop;
+    context.fillStyle = palette.boardFill;
     context.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
 
     context.lineWidth = 0.8;
 
     for (let i = 0; i <= 10; i++) {
-      context.strokeStyle = i % 2 === 0
-        ? (palette ? palette.gridMajor : theme.gridMajor)
-        : (palette ? palette.gridMinor : theme.gridMinor);
+      context.strokeStyle = i % 2 === 0 ? palette.gridMajor : palette.gridMinor;
       context.beginPath();
       context.moveTo(i * BLOCK_SIZE, 0);
       context.lineTo(i * BLOCK_SIZE, BOARD_HEIGHT);
@@ -1033,9 +712,7 @@ function game(timestamp) {
     }
 
     for (let i = 0; i <= 20; i++) {
-      context.strokeStyle = i % 2 === 0
-        ? (palette ? palette.gridMajor : theme.gridMajor)
-        : (palette ? palette.gridMinor : theme.gridMinor);
+      context.strokeStyle = i % 2 === 0 ? palette.gridMajor : palette.gridMinor;
       context.beginPath();
       context.moveTo(0, i * BLOCK_SIZE);
       context.lineTo(BOARD_WIDTH, i * BLOCK_SIZE);
@@ -1043,35 +720,33 @@ function game(timestamp) {
     }
   }
 
-  function drawBlockFill(context, x, y, theme, color) {
-    const palette = getModePalette();
-    context.fillStyle = palette ? palette.pieceFill : (mode !== 0 ? theme.pieceFill : color);
+  function drawBlockFill(context, x, y, color) {
+    context.fillStyle = getModePalette().pieceFill || color;
     context.fillRect(x, y - BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
   }
 
-  function drawBlockBorders(context, x, y, theme) {
-    const palette = getModePalette();
-    context.strokeStyle = palette ? palette.pieceStroke : theme.pieceStroke;
+  function drawBlockBorders(context, x, y) {
+    context.strokeStyle = getModePalette().pieceStroke;
     context.lineWidth = 1.8;
     context.strokeRect(x, y - BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
   }
 
-  function chooseBlock(context, theme) {
+  function chooseBlock(context) {
     for (let i = 0; i < squares.length; i++) {
       let s = squares[i];
-      drawBlockFill(context, s.x, s.y, theme, s.color);
+      drawBlockFill(context, s.x, s.y, s.color);
     }
     for (let j = 0; j < currPoints.length; j++) {
       let c = currPoints[j];
-      drawBlockFill(context, c.x, c.y, theme, c.color);
+      drawBlockFill(context, c.x, c.y, c.color);
     }
     for (let i = 0; i < squares.length; i++) {
       const s = squares[i];
-      drawBlockBorders(context, s.x, s.y, theme);
+      drawBlockBorders(context, s.x, s.y);
     }
     for (let j = 0; j < currPoints.length; j++) {
       const c = currPoints[j];
-      drawBlockBorders(context, c.x, c.y, theme);
+      drawBlockBorders(context, c.x, c.y);
     }
   }
 
@@ -1080,21 +755,11 @@ function game(timestamp) {
     document.getElementById("myCanvas")
   );
   let context = canvas.getContext("2d");
-  const theme = getModeTheme();
 
-  drawBoard(context, theme);
+  drawBoard(context);
 
-  currPoints = [];
-  createBlock(
-    currBlock,
-    currPoints,
-    currBlock.type,
-    currBlock.x,
-    currBlock.y,
-    currBlock.color,
-    currBlock.rotation
-  );
-  chooseBlock(context, theme);
+  currPoints = getBlockPoints(currBlock.type, currBlock.x, currBlock.y, currBlock.rotation);
+  chooseBlock(context);
 
   // Draw the hold preview only when gameplay UI is shown
   if (gameScreen && gameplayUIShown) {
@@ -1175,8 +840,8 @@ function game(timestamp) {
     // The loop stops here, so redraw the settled board once; otherwise the
     // last frame (drawn before this landing's row clear) stays on screen.
     currPoints = [];
-    drawBoard(context, theme);
-    chooseBlock(context, theme);
+    drawBoard(context);
+    chooseBlock(context);
   }
 
   if (gameScreen && !quit) {
