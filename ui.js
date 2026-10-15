@@ -50,6 +50,24 @@ function showMenu(menuId) {
   }
 
   activeMenuId = menuId;
+  updateBoardIdle();
+}
+
+// The board shows the foes (or a still Classic board) while no game runs.
+function updateBoardIdle() {
+  const idle = document.getElementById("board-idle");
+  if (!idle) return;
+
+  let view = "none";
+  if (activeMenuId === "mode-menu") {
+    view = "menu";
+  } else if (activeMenuId === "about-menu") {
+    view = ["classic", "light", "dark"][mode];
+  }
+  idle.dataset.view = view;
+  if (view === "classic" && typeof drawIdleBoard === "function") {
+    drawIdleBoard();
+  }
 }
 
 function showModeMenu() {
@@ -234,6 +252,31 @@ function startGame() {
   showGameplayUI();
   pushBlock();
   startGameLoop();
+  showTouchHint();
+}
+
+// Remind touch players of the board gestures for their first few games.
+const TOUCH_HINT_KEY = "squareSagaTouchHints";
+const TOUCH_HINT_LIMIT = 3;
+
+function showTouchHint() {
+  const hint = document.getElementById("touch-hint");
+  if (!hint || !window.matchMedia("(pointer: coarse)").matches) {
+    return;
+  }
+  let shown = 0;
+  try {
+    shown = Number(localStorage.getItem(TOUCH_HINT_KEY)) || 0;
+    if (shown >= TOUCH_HINT_LIMIT) {
+      return;
+    }
+    localStorage.setItem(TOUCH_HINT_KEY, String(shown + 1));
+  } catch (error) {
+    // Storage can be unavailable (private mode); show the hint anyway.
+  }
+  hint.classList.remove("show");
+  hint.offsetHeight;
+  hint.classList.add("show");
 }
 
 function resetRunState() {
@@ -328,6 +371,7 @@ const ENEMIES = {
     image: "assets/monster_saga.png",
     alt: "Demon Vortax",
     name: "Ancient Demon Vortax",
+    goal: "Defeat Vortax",
   },
   2: {
     title: "Dark Mode",
@@ -335,6 +379,7 @@ const ENEMIES = {
     image: "assets/tree_saga.png",
     alt: "Aura-Giving Tree",
     name: "Sacred Aura-Giving Tree",
+    goal: "Drain the Tree",
   },
 };
 let lastHudState = null;
@@ -352,6 +397,8 @@ function updateGameplayUI() {
   const objectiveValue = document.getElementById("objective-value");
   const performanceLabel = document.getElementById("performance-label");
   const performanceValue = document.getElementById("performance-value");
+  const enemyHealthLabel = document.getElementById("enemy-health-label");
+  const enemyHealthValue = document.getElementById("enemy-health-value");
   const healthBar = document.getElementById("health-bar");
   const healthFill = document.getElementById("health-fill");
   const characterSection = document.getElementById("character-section");
@@ -367,19 +414,21 @@ function updateGameplayUI() {
     gameTitle.textContent = "Classic Mode";
     objectiveLabel.textContent = "Objective";
     objectiveValue.textContent = "Survive";
-    healthBar.style.display = "none";
     characterSection.style.display = "none";
     return;
   }
 
   const health = Math.max(0, enemyHealth);
   gameTitle.textContent = enemy.title;
-  objectiveLabel.textContent = enemy.label;
-  objectiveValue.textContent = health;
+  objectiveLabel.textContent = "Objective";
+  objectiveValue.textContent = enemy.goal;
+  enemyHealthLabel.textContent = enemy.label;
+  enemyHealthValue.textContent = health;
   healthBar.style.display = "block";
   healthFill.style.width = `${Math.min(100, (health / OBJECTIVE_SCORE) * 100)}%`;
 
-  characterSection.style.display = "block";
+  characterSection.style.display = "flex";
+  characterSection.style.setProperty("--enemy-image", `url("${enemy.image}")`);
   characterImage.src = enemy.image;
   characterImage.alt = enemy.alt;
   characterName.textContent = enemy.name;
@@ -429,4 +478,5 @@ if (initialMenu) {
   initialMenu.classList.add("menu-active");
   activeMenuId = "mode-menu";
 }
+updateBoardIdle();
 menus();

@@ -26,7 +26,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Import Google Fonts for enhanced typography -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800;900&family=Marcellus&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800;900&family=Marcellus&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500&display=swap"
       rel="stylesheet"
     />
     <style>
@@ -43,13 +43,17 @@
        */
       :root {
         --page-pad: 20px;
-        --board-gap: 10px;
+        --shell-pad: 14px;
+        --board-gap: 14px;
         --board-border: 1px;
         --panel-min: 340px;
-        --board-fit-h: calc(100vh - 2 * var(--page-pad) - 2 * var(--board-border));
+        --panel-w: 820px;
+        --board-fit-h: calc(
+          100vh - 2 * var(--page-pad) - 2 * var(--shell-pad) - 2 * var(--board-border)
+        );
         --board-fit-w: calc(
-          (100vw - 2 * var(--page-pad) - var(--board-gap) - var(--panel-min) -
-            2 * var(--board-border)) * 2
+          (100vw - 2 * var(--page-pad) - 2 * var(--shell-pad) - var(--board-gap) -
+            var(--panel-min) - 2 * var(--board-border)) * 2
         );
         --board-h: clamp(440px, min(var(--board-fit-h), var(--board-fit-w)), 800px);
         --card-size: clamp(120px, calc(var(--board-h) * 0.27), 216px);
@@ -57,19 +61,26 @@
 
       @supports (height: 100dvh) {
         :root {
-          --board-fit-h: calc(100dvh - 2 * var(--page-pad) - 2 * var(--board-border));
+          --board-fit-h: calc(
+            100dvh - 2 * var(--page-pad) - 2 * var(--shell-pad) - 2 * var(--board-border)
+          );
         }
       }
 
       body {
         font-family: "Plus Jakarta Sans", sans-serif;
-        background: linear-gradient(
-          180deg,
-          rgba(70, 83, 129, 1),
-          rgba(33, 41, 67, 1)
-        );
+        background:
+          radial-gradient(
+            ellipse 80% 60% at 50% 0%,
+            rgba(90, 103, 152, 1) 0%,
+            rgba(90, 103, 152, 0) 70%
+          ),
+          linear-gradient(180deg, #46528a 0%, #2a3258 60%, #1a2038 100%);
         color: rgba(246, 239, 226, 1);
         min-height: 100vh;
+        /* Use only the weights and styles actually loaded; Marcellus has a
+           single weight, and faked bold or italic looks smeared. */
+        font-synthesis: none;
         touch-action: manipulation;
         transition:
           background 320ms ease,
@@ -134,6 +145,18 @@
         }
       }
 
+      /* Phones keep the board and panel as separate blocks; wider screens
+         wrap both in one shell (see the min-width: 641px rules below). */
+      .game-shell {
+        display: contents;
+      }
+
+      .board-frame {
+        position: relative;
+        flex: none;
+        z-index: 1;
+      }
+
       .game-board {
         box-sizing: content-box;
         flex: none;
@@ -166,6 +189,148 @@
         box-shadow: 0 20px 44px rgba(4, 5, 10, 0.45);
         position: relative;
         overflow: hidden;
+      }
+
+      @media (min-width: 641px) {
+        /* The panel's absolutely placed screens give it no intrinsic width,
+           so size the shell explicitly and let the panel fill the rest. */
+        .game-shell {
+          display: flex;
+          flex: 0 1 auto;
+          width: min(
+            100%,
+            calc(var(--board-h) / 2 + 2 * var(--board-border) + var(--board-gap) +
+              var(--panel-w) + 2 * var(--shell-pad) + 2px)
+          );
+          gap: var(--board-gap);
+          padding: var(--shell-pad);
+          border-radius: 30px;
+          border: 1px solid rgba(226, 197, 143, 0.55);
+          background:
+            linear-gradient(180deg, rgba(40, 49, 80, 0.9), rgba(24, 30, 50, 0.9)),
+            linear-gradient(155deg, rgba(255, 244, 210, 0.08), transparent 42%);
+          box-shadow:
+            0 24px 54px rgba(4, 5, 10, 0.45),
+            inset 0 1px 0 rgba(255, 244, 218, 0.1);
+          backdrop-filter: blur(14px);
+        }
+
+        .game-board {
+          border-radius: 8px;
+          box-shadow: 0 10px 22px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Inside the shell the panel is an inset surface, not a second card. */
+        .ui-panel {
+          flex: 1 1 0;
+          background: rgba(255, 244, 218, 0.03);
+          border: 1px solid rgba(226, 197, 143, 0.22);
+          border-radius: 18px;
+          box-shadow: inset 0 1px 0 rgba(255, 244, 218, 0.05);
+        }
+      }
+
+      /* Idle view: the board shows the foes, or a still Classic board,
+         while no game is running. */
+      .board-idle {
+        position: absolute;
+        inset: var(--board-border);
+        border-radius: 7px;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        pointer-events: none;
+        z-index: 2;
+        background: rgba(30, 37, 58, 1);
+      }
+
+      .board-idle[data-view="none"] {
+        display: none;
+      }
+
+      .board-idle[data-view="classic"] {
+        background: transparent;
+      }
+
+      .idle-foe,
+      .idle-classic {
+        position: relative;
+        flex: 1 1 0;
+        min-height: 0;
+        display: none;
+        overflow: hidden;
+        isolation: isolate;
+      }
+
+      .board-idle[data-view="menu"] .idle-foe,
+      .board-idle[data-view="light"] .idle-foe-light,
+      .board-idle[data-view="dark"] .idle-foe-dark,
+      .board-idle[data-view="classic"] .idle-classic {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .board-idle[data-view="menu"] .idle-foe-dark {
+        border-top: 1px solid rgba(226, 197, 143, 0.3);
+      }
+
+      .idle-backdrop {
+        position: absolute;
+        inset: -40px;
+        z-index: -2;
+        background: var(--foe-image) center 35% / cover no-repeat;
+        filter: blur(36px) saturate(1.25);
+        opacity: 0.55;
+      }
+
+      .idle-foe::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background:
+          radial-gradient(ellipse at 50% 45%, transparent 35%, rgba(14, 18, 30, 0.6) 100%),
+          linear-gradient(to top, rgba(14, 18, 30, 0.85), transparent 40%);
+      }
+
+      .idle-foe {
+        padding: 24px 24px 72px;
+      }
+
+      .idle-foe img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        filter: drop-shadow(0 16px 26px rgba(0, 0, 0, 0.5));
+      }
+
+      .idle-caption {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 18px;
+        text-align: center;
+        font-family: "Marcellus", serif;
+        font-size: 1.05rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: rgba(244, 228, 196, 1);
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+      }
+
+      .idle-caption span {
+        display: block;
+        margin-bottom: 4px;
+        font-family: "Plus Jakarta Sans", sans-serif;
+        font-size: 0.72rem;
+        letter-spacing: 0.22em;
+        color: rgba(232, 220, 196, 0.8);
+      }
+
+      .board-idle[data-view="classic"] .idle-caption {
+        top: 38%;
+        bottom: auto;
       }
 
       .ui-panel::before {
@@ -370,7 +535,7 @@
 
       #mode-menu {
         justify-content: center;
-        padding-top: 26px;
+        padding-top: 24px;
         padding-bottom: 24px;
         gap: 36px;
       }
@@ -417,22 +582,19 @@
 
       .gameplay-screen {
         justify-content: flex-start;
-        padding-top: 10px;
-        gap: 20px;
-      }
-
-      .gameplay-top {
-        text-align: center;
-        width: 100%;
+        padding-top: 4px;
+        padding-bottom: 4px;
+        gap: 16px;
       }
 
       .gameplay-title {
-        margin-bottom: 10px;
-        font-size: 1.6rem;
+        margin-bottom: 0;
+        font-size: 1.35rem;
         font-family: "Cinzel", serif;
         font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.12em;
+        color: rgba(244, 228, 196, 1);
       }
 
       .score-display {
@@ -444,17 +606,11 @@
         color: rgba(244, 228, 196, 1);
       }
 
-      .score-header {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-      }
-
       .score-label {
         font-size: 0.76rem;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: rgba(232, 220, 196, 0.86);
+        letter-spacing: 0.16em;
+        color: rgba(226, 197, 143, 0.9);
       }
 
       .health-bar {
@@ -469,28 +625,15 @@
 
       .health-fill {
         height: 100%;
-        background: linear-gradient(
-          90deg,
-          rgba(184, 112, 84, 0.92),
-          rgba(151, 89, 69, 0.94)
-        );
+        background: linear-gradient(90deg, #c9584a, #e08a5a);
         transition: width 0.3s ease;
         border-radius: 8px;
       }
 
       .health-bar-main {
-        height: 24px;
+        height: 12px;
         border-radius: 999px;
-        max-width: 280px;
-        margin: 14px auto 0;
-      }
-
-      .metric-card {
-        text-align: center;
-        padding: 8px 10px;
-        border-radius: 12px;
-        border: 1px solid rgba(226, 197, 143, 0.34);
-        background: rgba(26, 33, 54, 0.45);
+        margin: 0;
       }
 
       .metric-value {
@@ -500,66 +643,100 @@
         color: rgba(244, 228, 196, 1);
       }
 
-      .gameplay-middle {
-        display: flex;
-        gap: 28px;
-        margin-bottom: 20px;
-        flex: 1;
+      /* Enemy: portrait over a blurred copy of itself, name and health
+         below. It takes the panel's spare height. */
+      .enemy-card {
+        position: relative;
+        flex: 1 1 auto;
         min-height: 0;
         width: 100%;
-        max-width: calc(2 * var(--card-size) + 60px);
-      }
-
-      .gameplay-column-centered {
-        flex: 1 1 0;
-        min-width: 0;
         display: flex;
         flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        gap: 10px;
-      }
-
-      /* Classic mode has no character: let the hold card take the centre. */
-      .gameplay-column-character:not(:has(> .character-section[style*="block"])) {
-        display: none;
-      }
-
-      .character-section,
-      .hold-card {
-        width: 100%;
-        text-align: center;
+        border-radius: 20px;
+        border: 1px solid rgba(226, 197, 143, 0.44);
+        background: rgba(20, 25, 41, 0.6);
+        box-shadow:
+          0 14px 30px rgba(0, 0, 0, 0.3),
+          inset 0 1px 0 rgba(255, 244, 218, 0.1);
+        overflow: hidden;
+        isolation: isolate;
+        text-align: left;
       }
 
       .character-section-initially-hidden {
         display: none;
       }
 
-      .character-container-large,
-      .hold-preview-canvas-large {
-        display: block;
-        width: min(var(--card-size), 100%);
-        height: auto;
-        aspect-ratio: 1 / 1;
-        border-radius: 22px;
-        border: 1.5px solid rgba(226, 197, 143, 0.54);
-        box-shadow:
-          0 12px 24px rgba(0, 0, 0, 0.3),
-          inset 0 0 0 1px rgba(255, 244, 218, 0.16);
-        background: rgba(28, 34, 53, 0.9);
-        margin: 0 auto;
+      .enemy-backdrop {
+        position: absolute;
+        inset: -48px;
+        z-index: -2;
+        background: var(--enemy-image) center 30% / cover no-repeat;
+        filter: blur(38px) saturate(1.3);
+        opacity: 0.6;
       }
 
-      .character-container-large {
-        overflow: hidden;
+      .enemy-card::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background:
+          radial-gradient(ellipse at 50% 40%, transparent 30%, rgba(14, 18, 30, 0.55) 100%),
+          linear-gradient(to top, rgba(14, 18, 30, 0.9), transparent 45%);
+      }
+
+      .enemy-portrait {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 18px 18px 0;
       }
 
       .character-image {
         display: block;
         width: 100%;
         height: 100%;
-        object-fit: cover;
-        object-position: center top;
+        object-fit: contain;
+        filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.5));
+      }
+
+      .enemy-info {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px 20px 18px;
+        background: rgba(18, 22, 36, 0.35);
+        border-top: 1px solid rgba(226, 197, 143, 0.2);
+        backdrop-filter: blur(10px);
+      }
+
+      .enemy-info-top {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 4px 12px;
+      }
+
+      .enemy-health {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+        white-space: nowrap;
+      }
+
+      .enemy-health-value {
+        font-family: "Marcellus", serif;
+        font-size: 1.3rem;
+        color: rgba(244, 228, 196, 1);
+      }
+
+      .enemy-health-max {
+        color: rgba(232, 220, 196, 0.6);
+        font-size: 1rem;
       }
 
       .character-name,
@@ -570,35 +747,101 @@
       }
 
       .character-name {
-        margin-top: 12px;
-        font-size: 1rem;
+        font-size: 1.05rem;
         font-weight: 700;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.05em;
         text-transform: uppercase;
         color: rgba(244, 228, 196, 1);
-        text-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
+        text-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+      }
+
+      /* Player: held piece beside score and objective. */
+      .player-row {
+        width: 100%;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 14px;
+        flex: none;
+      }
+
+      .hold-card,
+      .metric-card {
+        border-radius: 14px;
+        border: 1px solid rgba(226, 197, 143, 0.28);
+        background: rgba(14, 18, 32, 0.45);
+        backdrop-filter: blur(10px);
+        box-shadow: inset 0 1px 0 rgba(255, 244, 218, 0.06);
+      }
+
+      .hold-card {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 10px 12px 12px;
       }
 
       .hold-title {
-        margin-top: 12px;
-        font-size: 1rem;
-        letter-spacing: 0.04em;
+        font-size: 0.76rem;
+        font-family: "Plus Jakarta Sans", sans-serif;
+        letter-spacing: 0.16em;
         text-transform: uppercase;
-        color: rgba(244, 228, 196, 1);
+        color: rgba(226, 197, 143, 0.9);
+      }
+
+      .hold-preview-canvas {
+        display: block;
+        width: var(--hold-size, 104px);
+        height: var(--hold-size, 104px);
+        border-radius: 10px;
+        border: 1px solid rgba(226, 197, 143, 0.4);
+      }
+
+      .player-stats {
+        display: grid;
+        grid-template-rows: 1fr 1fr;
+        gap: 14px;
+      }
+
+      .player-stats .metric-card {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+        padding: 10px 18px;
+        text-align: left;
+      }
+
+      .player-stats .metric-value {
+        font-size: 1.6rem;
+      }
+
+      /* Classic has no enemy: the player row takes the room instead. */
+      body.mode-classic .player-row {
+        flex: 1 1 auto;
+        min-height: 0;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr) auto;
+        --hold-size: clamp(104px, calc(var(--board-h) * 0.36), 290px);
+      }
+
+      body.mode-classic .player-stats {
+        grid-template-rows: none;
+        grid-template-columns: 1fr 1fr;
       }
 
       .gameplay-actions-row {
         display: flex;
-        gap: 20px;
+        gap: 14px;
         justify-content: center;
         width: 100%;
-        max-width: 360px;
+        flex: none;
       }
 
       .action-slot {
         flex: 1 1 0;
         min-width: 0;
-        max-width: 220px;
         position: relative;
       }
 
@@ -611,9 +854,36 @@
       }
 
       .gameplay-btn-large {
-        font-size: 0.98rem;
-        padding: 14px 24px;
-        border-radius: 28px;
+        height: 54px;
+        font-size: 1rem;
+        padding: 0 24px;
+        border-radius: 27px;
+      }
+
+      /* Icon stand-ins for button labels, used where space is tight. */
+      .btn-icon {
+        display: none;
+        width: 24px;
+        height: 24px;
+        margin: 0 auto;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        pointer-events: none;
+      }
+
+      /* Primary actions stand out; secondary ones step back. */
+      .btn-primary {
+        border-color: rgba(234, 209, 159, 0.85);
+        background: linear-gradient(180deg, #6a78ae, #4a5788);
+      }
+
+      .btn-secondary {
+        background: rgba(14, 18, 32, 0.5);
+        border-color: rgba(226, 197, 143, 0.38);
+        box-shadow: inset 0 1px 0 rgba(255, 246, 224, 0.08);
       }
 
       .hold-feedback {
@@ -653,6 +923,7 @@
 
       #about-menu {
         align-items: stretch;
+        justify-content: safe center;
         overflow-y: auto;
       }
 
@@ -661,8 +932,7 @@
         grid-template-columns: 1fr;
         gap: 14px;
         width: 100%;
-        flex: 1 0 auto;
-        min-height: 0;
+        flex: none;
       }
 
       .hud-card,
@@ -727,16 +997,33 @@
         color: rgba(244, 228, 196, 1);
       }
 
+      /* Sticky so the button stays reachable when the rules scroll; the
+         backing keeps scrolled text from showing through behind it. */
       .about-actions {
-        margin-top: auto;
         position: sticky;
         bottom: 0;
-        padding-top: 10px;
-        background: linear-gradient(
-          to top,
-          rgba(26, 33, 54, 0.94),
-          transparent
-        );
+        padding-top: 14px;
+        /* Reach into the screen's bottom padding so nothing peeks below. */
+        margin-bottom: -16px;
+        padding-bottom: 16px;
+        background: linear-gradient(to top, rgba(29, 36, 58, 0.97) 65%, transparent);
+      }
+
+      /* Full-width primary actions share the panel's content width. */
+      .about-actions .game-button,
+      .dual-actions .game-button {
+        width: 100%;
+        min-width: 0;
+        height: 54px;
+        margin: 0;
+        padding: 0 20px;
+        border-radius: 27px;
+        font-size: 1rem;
+        white-space: nowrap;
+      }
+
+      .dual-actions .game-button {
+        padding: 0 12px;
       }
 
       .result-badge {
@@ -768,7 +1055,7 @@
 
       #end-menu {
         align-items: stretch;
-        justify-content: flex-start;
+        justify-content: safe center;
         gap: 14px;
         overflow-y: auto;
       }
@@ -782,8 +1069,7 @@
         display: grid;
         grid-template-columns: 1fr;
         gap: 12px;
-        flex: 1 0 auto;
-        min-height: 0;
+        flex: none;
       }
 
       .end-card h3 {
@@ -797,7 +1083,8 @@
 
       .end-card .end-score {
         margin-top: 0;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
+        font-size: 2rem;
       }
 
       .end-description {
@@ -806,23 +1093,14 @@
       }
 
       .end-actions {
-        margin-top: auto;
-        padding-top: 10px;
-        background: linear-gradient(to top, rgba(26, 33, 54, 0.94), transparent);
+        padding-top: 4px;
       }
 
       .dual-actions {
         width: 100%;
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        max-width: 430px;
-        margin: 0 auto;
-      }
-
-      .dual-actions .game-button {
-        width: 100%;
-        min-width: 0;
+        gap: 14px;
       }
 
       .victory {
@@ -833,62 +1111,49 @@
         color: rgba(202, 118, 108, 1);
       }
 
-      /* On-screen controls for touch devices and narrow screens */
-      .touch-controls {
-        display: none;
-        width: 100%;
-        max-width: 460px;
-        margin: 0 auto;
-        justify-content: space-between;
-        gap: 16px;
+      /* The board takes touch gestures, so it must not scroll or zoom. */
+      .game-board {
         touch-action: none;
         user-select: none;
         -webkit-user-select: none;
         -webkit-touch-callout: none;
       }
 
-      .touch-cluster {
-        flex: 1;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-      }
-
-      .touch-btn {
-        min-width: 0;
-        width: 100%;
-        height: 58px;
-        margin: 0;
-        padding: 0;
-        border-radius: 18px;
-        display: flex;
+      .touch-hint {
+        position: absolute;
+        left: 50%;
+        top: 38%;
+        z-index: 3;
+        display: none;
+        flex-direction: column;
         align-items: center;
-        justify-content: center;
-        touch-action: none;
-        user-select: none;
-        -webkit-user-select: none;
-        -webkit-tap-highlight-color: transparent;
-      }
-
-      .touch-btn svg {
-        width: 26px;
-        height: 26px;
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 2.4;
-        stroke-linecap: round;
-        stroke-linejoin: round;
+        gap: 6px;
+        padding: 14px 20px;
+        border-radius: 16px;
+        border: 1px solid rgba(226, 197, 143, 0.4);
+        background: rgba(18, 22, 36, 0.82);
+        backdrop-filter: blur(8px);
+        transform: translateX(-50%);
+        font-family: "Marcellus", serif;
+        font-size: 0.95rem;
+        letter-spacing: 0.04em;
+        color: rgba(244, 228, 196, 1);
+        white-space: nowrap;
         pointer-events: none;
       }
 
-      .touch-btn.is-pressed {
-        border-color: rgba(234, 209, 159, 0.86);
-        filter: brightness(1.16);
-        transform: scale(0.97);
-        box-shadow:
-          0 4px 10px rgba(6, 7, 12, 0.36),
-          0 0 0 1px rgba(234, 209, 159, 0.26),
-          inset 0 1px 0 rgba(255, 246, 224, 0.2);
+      .touch-hint.show {
+        display: flex;
+        animation: touchHintFade 4.2s ease forwards;
+      }
+
+      @keyframes touchHintFade {
+        0%, 80% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
       }
 
       .key-hint-touch {
@@ -896,11 +1161,7 @@
       }
 
       @media (any-pointer: coarse), (max-width: 640px) {
-        .touch-controls {
-          display: flex;
-        }
-
-        /* The popup rises over the touch controls here, so give it a backing. */
+        /* The popup rises over other controls here, so give it a backing. */
         .hold-feedback {
           z-index: 5;
           padding: 3px 12px;
@@ -925,7 +1186,6 @@
         }
 
         .ui-panel {
-          flex-basis: 680px;
           padding: 24px;
         }
 
@@ -937,22 +1197,12 @@
           font-size: clamp(2.4rem, 5vw, 3rem);
         }
 
-        .gameplay-middle {
-          gap: 20px;
-        }
-
         .about-layout {
           grid-template-columns: 1fr;
         }
 
         .keymap-strip {
           grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-      }
-
-      @media (min-width: 1420px) {
-        .ui-panel {
-          flex-basis: 700px;
         }
       }
 
@@ -971,10 +1221,6 @@
         .gameplay-title {
           margin-bottom: 6px;
           font-size: 1.4rem;
-        }
-
-        .gameplay-middle {
-          margin-bottom: 0;
         }
 
         #mode-menu {
@@ -996,25 +1242,13 @@
         }
       }
 
-      /* Side-by-side layouts: the middle row gets whatever height is left
-         after the HUD, touch controls and buttons, and the cards shrink to
-         fit it (leaving room for their labels) instead of overlapping. */
-      @media (min-width: 641px) {
-        .gameplay-middle {
-          container-type: size;
-        }
-
-        .character-container-large,
-        .hold-preview-canvas-large {
-          width: min(var(--card-size), 100%, calc(100cqh - 64px));
-        }
-      }
-
       /* Short, wide screens such as phones in landscape: let the board
          shrink below its usual 440px floor. */
       @media (max-height: 540px) and (min-width: 641px) {
         :root {
           --page-pad: 8px;
+          --shell-pad: 8px;
+          --board-gap: 8px;
           --board-h: clamp(240px, min(var(--board-fit-h), var(--board-fit-w)), 800px);
           --card-size: 64px;
         }
@@ -1073,37 +1307,40 @@
         }
 
         .health-bar-main {
-          height: 12px;
-          margin-top: 6px;
+          height: 8px;
         }
 
-        .gameplay-middle {
-          gap: 12px;
-          margin-bottom: 0;
+        .enemy-portrait {
+          padding: 8px 8px 0;
         }
 
-        .character-container-large,
-        .hold-preview-canvas-large {
-          border-radius: 12px;
+        .enemy-info {
+          gap: 6px;
+          padding: 8px 12px 10px;
+        }
+
+        .enemy-health-value {
+          font-size: 1rem;
+        }
+
+        .player-row,
+        .player-stats {
+          gap: 8px;
+          --hold-size: 48px;
+        }
+
+        .hold-card {
+          gap: 4px;
+          padding: 6px 8px 8px;
+        }
+
+        .player-stats .metric-value {
+          font-size: 1rem;
         }
 
         .character-name,
         .hold-title {
-          margin-top: 4px;
           font-size: 0.7rem;
-        }
-
-        .touch-controls {
-          gap: 10px;
-        }
-
-        .touch-cluster {
-          gap: 8px;
-        }
-
-        .touch-btn {
-          height: 42px;
-          border-radius: 14px;
         }
 
         .gameplay-actions-row {
@@ -1111,9 +1348,10 @@
         }
 
         .gameplay-btn-large {
-          padding: 8px 14px;
+          height: 38px;
+          padding: 0 14px;
           font-size: 0.82rem;
-          border-radius: 20px;
+          border-radius: 19px;
         }
       }
 
@@ -1122,7 +1360,7 @@
           --page-pad-x: 12px;
           --page-pad-y: 10px;
           --board-gap: 8px;
-          --hud-h: 212px;
+          --hud-h: 102px;
           --card-size: 56px;
           --board-fit-h: calc(
             100vh - 2 * var(--page-pad-y) - var(--board-gap) - var(--hud-h) -
@@ -1172,14 +1410,29 @@
         }
 
         /* Mode and about menus get the whole screen; the empty board waits. */
-        .game-container:has(#mode-menu:is(.menu-active, .menu-enter)) .game-board,
-        .game-container:has(#about-menu:is(.menu-active, .menu-enter)) .game-board {
+        .game-container:has(#mode-menu:is(.menu-active, .menu-enter)) .board-frame,
+        .game-container:has(#about-menu:is(.menu-active, .menu-enter)) .board-frame {
           display: none;
         }
 
         /* Results first, final board below. */
         .game-container:has(#end-menu:is(.menu-active, .menu-enter)) .ui-panel {
           order: -1;
+        }
+
+        /* Whenever the board shows, the panel matches its width exactly. */
+        .game-container:has(#gameplay-ui:is(.menu-active, .menu-enter)) .ui-panel,
+        .game-container:has(#end-menu:is(.menu-active, .menu-enter)) .ui-panel {
+          width: calc(var(--board-h) / 2 + 2 * var(--board-border));
+          max-width: none;
+        }
+
+        /* In a game the controls sit flat under the board, not in a card. */
+        .game-container:has(#gameplay-ui:is(.menu-active, .menu-enter)) .ui-panel {
+          padding: 0;
+          border: none;
+          background: none;
+          box-shadow: none;
         }
 
         #mode-menu,
@@ -1219,60 +1472,125 @@
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
+        /* Phone HUD: enemy across the top, then the held piece, score, Hold
+           and Surrender. Pieces are steered by touching the board. */
         #gameplay-ui {
           display: grid;
-          grid-template-columns: auto minmax(0, 1fr);
+          grid-template-columns: repeat(6, minmax(0, 1fr));
           grid-template-areas:
-            "hold stats"
-            "touch touch"
-            "actions actions";
-          align-items: center;
-          gap: 8px 12px;
+            "enemy enemy enemy enemy enemy enemy"
+            "hold stats stats actions actions actions";
+          align-items: stretch;
+          gap: 8px;
           padding: 0;
+        }
+
+        body.mode-classic #gameplay-ui {
+          grid-template-areas: "hold stats stats actions actions actions";
+        }
+
+        /* No enemy row in Classic, so the board can grow by that much. */
+        body.mode-classic {
+          --hud-h: 54px;
+          --board-fit-h: calc(
+            100vh - 2 * var(--page-pad-y) - var(--board-gap) - var(--hud-h) -
+              2 * var(--board-border)
+          );
+          --board-h: clamp(300px, min(var(--board-fit-h), var(--board-fit-w)), 800px);
+        }
+
+        @supports (height: 100dvh) {
+          body.mode-classic {
+            --board-fit-h: calc(
+              100dvh - 2 * var(--page-pad-y) - var(--board-gap) - var(--hud-h) -
+                2 * var(--board-border)
+            );
+          }
         }
 
         .gameplay-title {
           display: none;
         }
 
-        .gameplay-top {
-          grid-area: stats;
+        /* A compact enemy strip: name and health, no portrait. */
+        .enemy-card {
+          grid-area: enemy;
+          flex: none;
+          border-radius: 10px;
         }
 
-        .gameplay-middle {
-          grid-area: hold;
-          display: block;
-          width: auto;
-          margin: 0;
-        }
-
-        .gameplay-column-character {
+        .enemy-backdrop,
+        .enemy-portrait,
+        .enemy-card::after,
+        .enemy-health .score-label {
           display: none;
         }
 
-        .gameplay-column-hold {
-          gap: 0;
+        .enemy-info {
+          gap: 4px;
+          padding: 5px 10px 7px;
+          border-top: none;
         }
 
-        .hold-preview-canvas-large {
-          width: var(--card-size);
+        .enemy-info-top {
+          flex-wrap: nowrap;
+        }
+
+        .character-name {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          font-size: 0.72rem;
+        }
+
+        .enemy-health-value {
+          font-size: 0.9rem;
+        }
+
+        .enemy-health-max {
+          font-size: 0.75rem;
+        }
+
+        .player-row {
+          display: contents;
+        }
+
+        .hold-card {
+          grid-area: hold;
+          padding: 3px;
           border-radius: 10px;
-          box-shadow: inset 0 0 0 1px rgba(255, 244, 218, 0.16);
+          --hold-size: 42px;
         }
 
         .hold-title {
-          margin-top: 4px;
-          font-size: 0.6rem;
-          white-space: nowrap;
+          display: none;
         }
 
-        .score-header {
+        .player-stats {
+          grid-area: stats;
+          grid-template-rows: none;
+          grid-template-columns: 1fr;
           gap: 8px;
         }
 
-        .metric-card {
-          padding: 4px 8px;
-          border-radius: 10px;
+        /* The objective is on the rules screen; phones show the score only. */
+        .player-stats .metric-card:last-child {
+          display: none;
+        }
+
+        /* The score reads as plain text here, not another box. */
+        .player-stats .metric-card {
+          justify-content: center;
+          padding: 0 4px;
+          border: none;
+          background: none;
+          box-shadow: none;
+          backdrop-filter: none;
+        }
+
+        .player-stats .metric-value {
+          font-size: 1.05rem;
         }
 
         .score-label {
@@ -1280,40 +1598,39 @@
           letter-spacing: 0.08em;
         }
 
-        .metric-value {
-          font-size: 1.05rem;
-        }
-
         .health-bar-main {
           height: 8px;
-          margin: 6px 0 0;
-          max-width: none;
-        }
-
-        .touch-controls {
-          grid-area: touch;
-          max-width: none;
-          gap: 12px;
-        }
-
-        .touch-btn {
-          height: 56px;
         }
 
         .gameplay-actions-row {
           grid-area: actions;
-          gap: 10px;
-          max-width: none;
+          gap: 8px;
         }
 
-        .action-slot {
-          max-width: none;
+        .action-slot:first-child {
+          flex: 2 1 0;
         }
 
         .gameplay-btn-large {
-          padding: 9px 12px;
+          height: 100%;
+          min-height: 44px;
+          padding: 0 4px;
           font-size: 0.82rem;
-          border-radius: 20px;
+          border-radius: 14px;
+        }
+
+        /* Surrender becomes a flag icon to fit the control row. */
+        #surrender-button .btn-icon {
+          display: block;
+        }
+
+        #surrender-button .btn-label {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          overflow: hidden;
+          clip-path: inset(50%);
+          white-space: nowrap;
         }
       }
     </style>
@@ -1321,13 +1638,40 @@
   <body>
     <!-- Main game container -->
     <div class="game-container">
+      <!-- One shell holds the board and the panel on wider screens -->
+      <div class="game-shell">
       <!-- Game Board Canvas - Main game area -->
-      <canvas
-        id="myCanvas"
-        class="game-board"
-        width="400"
-        height="800"
-      ></canvas>
+      <div class="board-frame">
+        <canvas
+          id="myCanvas"
+          class="game-board"
+          width="400"
+          height="800"
+        ></canvas>
+
+        <!-- Brief gesture reminder at the start of a touch game -->
+        <div id="touch-hint" class="touch-hint" aria-hidden="true">
+          <span>Tap to rotate</span><span>Drag to move</span
+          ><span>Flick down to drop</span><span>Swipe up to hold</span>
+        </div>
+
+        <!-- Shown over the board while no game is running -->
+        <div id="board-idle" class="board-idle" data-view="menu" aria-hidden="true">
+          <div class="idle-foe idle-foe-light">
+            <div class="idle-backdrop" style="--foe-image: url('assets/monster_saga.png')"></div>
+            <img src="assets/monster_saga.png" alt="" />
+            <div class="idle-caption"><span>Light</span>Ancient Demon Vortax</div>
+          </div>
+          <div class="idle-foe idle-foe-dark">
+            <div class="idle-backdrop" style="--foe-image: url('assets/tree_saga.png')"></div>
+            <img src="assets/tree_saga.png" alt="" />
+            <div class="idle-caption"><span>Dark</span>Sacred Aura-Giving Tree</div>
+          </div>
+          <div class="idle-classic">
+            <div class="idle-caption"><span>Classic</span>Survive the endless descent</div>
+          </div>
+        </div>
+      </div>
 
       <!-- UI Panel - Contains all menus and game information -->
       <div class="ui-panel">
@@ -1383,22 +1727,26 @@
             <div class="key-chip">
               <strong>Move</strong
               ><span class="key-hint-keys">Left / Right Arrows</span
-              ><span class="key-hint-touch">Left / Right Buttons</span>
+              ><span class="key-hint-touch">Drag Sideways</span>
             </div>
             <div class="key-chip">
               <strong>Rotate</strong
               ><span class="key-hint-keys">Up Arrow</span
-              ><span class="key-hint-touch">Rotate Button</span>
+              ><span class="key-hint-touch">Tap the Board</span>
             </div>
             <div class="key-chip">
               <strong>Drop</strong
               ><span class="key-hint-keys">Down Arrow</span
-              ><span class="key-hint-touch">Down Button</span>
+              ><span class="key-hint-touch">Drag or Flick Down</span>
             </div>
-            <div class="key-chip"><strong>Hold</strong>Hold Button</div>
+            <div class="key-chip">
+              <strong>Hold</strong
+              ><span class="key-hint-keys">Hold Button</span
+              ><span class="key-hint-touch">Swipe Up</span>
+            </div>
           </div>
           <div class="about-actions">
-            <button class="game-button" onclick="startGame()">
+            <button class="game-button btn-primary" onclick="startGame()">
               Enter the Battle
             </button>
           </div>
@@ -1406,121 +1754,60 @@
 
         <!-- Gameplay UI - Active game interface -->
         <div id="gameplay-ui" class="menu-screen gameplay-screen hidden">
-          <!-- Top section: Mode and Score -->
-          <div class="gameplay-top">
-            <h2 id="game-title" class="gameplay-title">Game Mode</h2>
-            <div id="score-section">
-              <div class="score-header">
-                <div class="metric-card">
-                  <span class="score-label" id="objective-label">Objective</span>
-                  <div class="metric-value" id="objective-value">Survive</div>
-                </div>
-                <div class="metric-card">
-                  <span class="score-label" id="performance-label">Score</span>
-                  <div class="metric-value" id="performance-value">0</div>
+          <h2 id="game-title" class="gameplay-title">Game Mode</h2>
+
+          <!-- Enemy: portrait, name and health together (Light and Dark) -->
+          <section
+            id="character-section"
+            class="enemy-card character-section-initially-hidden"
+            aria-label="Enemy"
+          >
+            <div class="enemy-backdrop" aria-hidden="true"></div>
+            <div id="character-container" class="enemy-portrait">
+              <img
+                id="character-image"
+                src=""
+                alt="Character"
+                class="character-image"
+              />
+            </div>
+            <div class="enemy-info">
+              <div class="enemy-info-top">
+                <div id="character-name" class="character-name"></div>
+                <div class="enemy-health">
+                  <span class="score-label" id="enemy-health-label">Enemy Health</span>
+                  <span class="enemy-health-value"
+                    ><span id="enemy-health-value">2000</span
+                    ><span class="enemy-health-max"> / 2000</span></span
+                  >
                 </div>
               </div>
               <div class="health-bar health-bar-main" id="health-bar">
                 <div class="health-fill" id="health-fill"></div>
               </div>
             </div>
-          </div>
+          </section>
 
-          <!-- Middle section: Two columns for character and hold -->
-          <div class="gameplay-middle">
-            <!-- Left column: Character -->
-            <div class="gameplay-column-centered gameplay-column-character">
-              <!-- Character Image Section - Shows monster or tree based on mode -->
-              <div
-                id="character-section"
-                class="character-section character-section-wide character-section-initially-hidden"
-              >
-                <div
-                  id="character-container"
-                  class="character-container character-container-large"
-                >
-                  <img
-                    id="character-image"
-                    src=""
-                    alt="Character"
-                    class="character-image"
-                  />
-                </div>
-                <div
-                  id="character-name"
-                  class="character-name character-name-large"
-                ></div>
+          <!-- Player: held piece, score and objective -->
+          <div class="player-row">
+            <div id="hold-preview-section" class="hold-card">
+              <h3 class="hold-title">Held Block</h3>
+              <canvas
+                id="hold-preview"
+                width="240"
+                height="240"
+                class="hold-preview-canvas"
+              ></canvas>
+            </div>
+            <div class="player-stats">
+              <div class="metric-card">
+                <span class="score-label" id="performance-label">Score</span>
+                <div class="metric-value" id="performance-value">0</div>
               </div>
-            </div>
-
-            <!-- Right column: Hold preview -->
-            <div class="gameplay-column-centered gameplay-column-hold">
-              <!-- Hold Preview Section - Shows held block -->
-              <div id="hold-preview-section" class="hold-card hold-card-wide">
-                <canvas
-                  id="hold-preview"
-                  width="240"
-                  height="240"
-                  class="hold-preview-canvas hold-preview-canvas-large"
-                ></canvas>
-                <h3 class="hold-title hold-title-large">Held Block</h3>
+              <div class="metric-card">
+                <span class="score-label" id="objective-label">Objective</span>
+                <div class="metric-value" id="objective-value">Survive</div>
               </div>
-            </div>
-          </div>
-
-          <!-- Touch controls: shown on touch devices and narrow screens -->
-          <div class="touch-controls" role="group" aria-label="Piece controls">
-            <div class="touch-cluster">
-              <button
-                type="button"
-                class="game-button touch-btn"
-                data-touch-action="left"
-                data-repeat
-                aria-label="Move left"
-                title="Move left"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M15 5l-7 7 7 7" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                class="game-button touch-btn"
-                data-touch-action="right"
-                data-repeat
-                aria-label="Move right"
-                title="Move right"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-            <div class="touch-cluster">
-              <button
-                type="button"
-                class="game-button touch-btn"
-                data-touch-action="down"
-                data-repeat
-                aria-label="Soft drop"
-                title="Soft drop"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 4v15M6 13l6 6 6-6" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                class="game-button touch-btn"
-                data-touch-action="rotate"
-                aria-label="Rotate piece"
-                title="Rotate piece"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3" />
-                  <path d="M19.5 4v4.5H15" />
-                </svg>
-              </button>
             </div>
           </div>
 
@@ -1528,7 +1815,7 @@
           <div class="gameplay-actions-row">
             <div class="action-slot">
               <button
-                class="game-button gameplay-btn gameplay-btn-large"
+                class="game-button gameplay-btn gameplay-btn-large btn-primary"
                 id="hold-button"
                 onclick="holdBlock()"
               >
@@ -1539,11 +1826,16 @@
             <div class="action-slot">
               <button
                 type="button"
-                class="game-button gameplay-btn gameplay-btn-large"
+                class="game-button gameplay-btn gameplay-btn-large btn-secondary"
                 id="surrender-button"
+                aria-label="Surrender"
                 onclick="quit = true"
               >
-                Surrender
+                <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 21V4" />
+                  <path d="M6 4h11l-2.5 4 2.5 4H6" />
+                </svg>
+                <span class="btn-label">Surrender</span>
               </button>
             </div>
           </div>
@@ -1568,15 +1860,16 @@
           </div>
           <div class="end-actions">
             <div class="dual-actions">
-              <button class="game-button" onclick="fightAgain()">
+              <button class="game-button btn-primary" onclick="fightAgain()">
                 Fight Again
               </button>
-              <button class="game-button" onclick="changeMode()">
+              <button class="game-button btn-secondary" onclick="changeMode()">
                 Change Mode
               </button>
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
 

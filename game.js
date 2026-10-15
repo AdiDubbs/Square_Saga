@@ -123,38 +123,39 @@ const PIECES = [
   },
 ];
 
-// Board and piece colours per mode (0 Classic, 1 Light, 2 Dark). A null
-// pieceFill or holdFill means each piece keeps its own colour.
+// Board and piece colours per mode (0 Classic, 1 Light, 2 Dark). The board
+// is a softly lit well with a dot at each grid corner; pieces are bevelled
+// stones. A null stone colour means each piece keeps its own colour.
 const PALETTES = [
   {
-    boardFill: "rgba(39, 48, 73, 1)",
-    gridMajor: "rgba(245, 231, 201, 0.16)",
-    gridMinor: "rgba(245, 231, 201, 0.08)",
-    pieceFill: null,
-    pieceStroke: "rgba(236, 226, 205, 0.34)",
-    holdFill: null,
-    holdStroke: "rgba(245, 224, 187, 0.52)",
-    holdEmpty: "rgba(244, 227, 196, 0.66)",
+    wellTop: "#2B3456",
+    wellBottom: "#1E2540",
+    wellGlow: 0.05,
+    dot: "rgba(245, 231, 201, 0.16)",
+    stone: null,
+    stoneEdge: "rgba(255, 255, 255, 0.18)",
+    stoneMark: "rgba(255, 255, 255, 0.22)",
+    emptyText: "rgba(244, 227, 196, 0.66)",
   },
   {
-    boardFill: "rgba(58, 68, 96, 1)",
-    gridMajor: "rgba(244, 236, 214, 0.18)",
-    gridMinor: "rgba(244, 236, 214, 0.09)",
-    pieceFill: "rgba(191, 182, 163, 0.96)",
-    pieceStroke: "rgba(241, 232, 211, 0.36)",
-    holdFill: "rgba(199, 189, 170, 0.94)",
-    holdStroke: "rgba(238, 227, 203, 0.36)",
-    holdEmpty: "rgba(218, 209, 188, 0.56)",
+    wellTop: "#3A4570",
+    wellBottom: "#262E4D",
+    wellGlow: 0.06,
+    dot: "rgba(244, 236, 214, 0.18)",
+    stone: "#D9CDB0",
+    stoneEdge: "rgba(120, 96, 56, 0.35)",
+    stoneMark: "rgba(120, 96, 56, 0.35)",
+    emptyText: "rgba(218, 209, 188, 0.6)",
   },
   {
-    boardFill: "rgba(29, 36, 52, 1)",
-    gridMajor: "rgba(159, 177, 206, 0.18)",
-    gridMinor: "rgba(159, 177, 206, 0.09)",
-    pieceFill: "rgba(95, 110, 132, 0.95)",
-    pieceStroke: "rgba(188, 203, 228, 0.34)",
-    holdFill: "rgba(102, 118, 140, 0.95)",
-    holdStroke: "rgba(177, 194, 220, 0.34)",
-    holdEmpty: "rgba(138, 154, 179, 0.5)",
+    wellTop: "#232733",
+    wellBottom: "#15171E",
+    wellGlow: 0.04,
+    dot: "rgba(188, 203, 228, 0.14)",
+    stone: "#7E8AA0",
+    stoneEdge: "rgba(0, 0, 0, 0.35)",
+    stoneMark: "rgba(0, 0, 0, 0.3)",
+    emptyText: "rgba(138, 154, 179, 0.6)",
   },
 ];
 
@@ -195,7 +196,7 @@ function stopGameLoop() {
   }
 }
 
-// Player input actions, shared by the keyboard and the on-screen touch controls.
+// Player input actions, shared by the keyboard and the board's touch gestures.
 // Each one is a no-op unless a game is active and a piece is falling.
 function canControlPiece() {
   return typeof gameScreen !== "undefined" && gameScreen && !!currBlock;
@@ -263,89 +264,103 @@ window.addEventListener("keydown", function (event) {
   action();
 });
 
-// On-screen touch controls: press-and-hold auto-repeats Left/Right/Down.
-const TOUCH_REPEAT_DELAY_MS = 150;
-const TOUCH_REPEAT_INTERVAL_MS = 60;
-const TOUCH_ACTIONS = {
-  left: moveLeft,
-  right: moveRight,
-  rotate: rotatePiece,
-  down: softDrop,
-};
-const touchControlStops = [];
-
-function stopAllTouchRepeats() {
-  touchControlStops.forEach((stop) => stop());
+function hardDrop() {
+  if (!canControlPiece()) {
+    return;
+  }
+  let landingY = currBlock.y;
+  while (isValidBlockState(currBlock, currBlock.x, landingY + 1, currBlock.rotation)) {
+    landingY += 1;
+  }
+  currBlock.y = landingY;
 }
 
-function bindTouchControls() {
-  const buttons = document.querySelectorAll("[data-touch-action]");
-  buttons.forEach((button) => {
-    const action = TOUCH_ACTIONS[button.getAttribute("data-touch-action")];
-    if (!action) {
+// Touch gestures on the board: drag sideways to move a column at a time,
+// drag down to drop a row at a time, flick down to drop all the way,
+// swipe up to hold, tap to rotate.
+const TAP_MAX_MOVE_PX = 10;
+const TAP_MAX_MS = 280;
+const FLICK_MAX_MS = 350;
+const FLICK_MIN_CELLS = 2;
+
+function bindBoardGestures() {
+  const board = document.getElementById("myCanvas");
+  if (!board) {
+    return;
+  }
+  let gesture = null;
+
+  board.addEventListener("pointerdown", (event) => {
+    // Mouse play stays on the keyboard; gestures are for touch and pen.
+    if (event.pointerType === "mouse" || !canControlPiece()) {
       return;
     }
-    const repeats = button.hasAttribute("data-repeat");
-    let delayTimer = null;
-    let repeatTimer = null;
-    let activePointerId = null;
-
-    const stop = () => {
-      window.clearTimeout(delayTimer);
-      window.clearInterval(repeatTimer);
-      delayTimer = null;
-      repeatTimer = null;
-      activePointerId = null;
-      button.classList.remove("is-pressed");
+    event.preventDefault();
+    board.setPointerCapture(event.pointerId);
+    gesture = {
+      id: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      anchorX: event.clientX,
+      anchorY: event.clientY,
+      startTime: performance.now(),
+      moved: false,
     };
-    touchControlStops.push(stop);
-
-    button.addEventListener("pointerdown", (event) => {
-      if (event.pointerType === "mouse" && event.button !== 0) {
-        return;
-      }
-      // Keep focus where it is and suppress emulated mouse events / zoom.
-      event.preventDefault();
-      stop();
-      activePointerId = event.pointerId;
-      button.classList.add("is-pressed");
-      action();
-      if (repeats) {
-        delayTimer = window.setTimeout(() => {
-          repeatTimer = window.setInterval(() => {
-            if (!canControlPiece()) {
-              stop();
-              return;
-            }
-            action();
-          }, TOUCH_REPEAT_INTERVAL_MS);
-        }, TOUCH_REPEAT_DELAY_MS);
-      }
-    });
-
-    const release = (event) => {
-      if (activePointerId === null || event.pointerId === activePointerId) {
-        stop();
-      }
-    };
-    button.addEventListener("pointerup", release);
-    button.addEventListener("pointercancel", release);
-    button.addEventListener("pointerleave", release);
-
-    // Keyboard activation (Enter/Space on a focused button) has detail 0.
-    button.addEventListener("click", (event) => {
-      if (event.detail === 0) {
-        action();
-      }
-    });
-    button.addEventListener("contextmenu", (event) => event.preventDefault());
   });
 
-  window.addEventListener("blur", stopAllTouchRepeats);
-  document.addEventListener("visibilitychange", stopAllTouchRepeats);
+  board.addEventListener("pointermove", (event) => {
+    if (!gesture || event.pointerId !== gesture.id) {
+      return;
+    }
+    const cell = board.clientWidth / (BOARD_WIDTH / BLOCK_SIZE);
+    if (
+      Math.abs(event.clientX - gesture.startX) > TAP_MAX_MOVE_PX ||
+      Math.abs(event.clientY - gesture.startY) > TAP_MAX_MOVE_PX
+    ) {
+      gesture.moved = true;
+    }
+    while (event.clientX - gesture.anchorX >= cell) {
+      moveRight();
+      gesture.anchorX += cell;
+    }
+    while (gesture.anchorX - event.clientX >= cell) {
+      moveLeft();
+      gesture.anchorX -= cell;
+    }
+    // A slow downward drag lowers the piece one row per cell dragged.
+    while (event.clientY - gesture.anchorY >= cell) {
+      softDrop();
+      gesture.anchorY += cell;
+    }
+  });
+
+  const finish = (event) => {
+    if (!gesture || event.pointerId !== gesture.id) {
+      return;
+    }
+    const cell = board.clientWidth / (BOARD_WIDTH / BLOCK_SIZE);
+    const dx = event.clientX - gesture.startX;
+    const dy = event.clientY - gesture.startY;
+    const elapsed = performance.now() - gesture.startTime;
+    const vertical = Math.abs(dy) > Math.abs(dx);
+
+    if (event.type === "pointerup") {
+      if (!gesture.moved && elapsed <= TAP_MAX_MS) {
+        rotatePiece();
+      } else if (vertical && elapsed <= FLICK_MAX_MS && dy >= FLICK_MIN_CELLS * cell) {
+        hardDrop();
+      } else if (vertical && elapsed <= FLICK_MAX_MS && -dy >= FLICK_MIN_CELLS * cell) {
+        holdBlock();
+      }
+    }
+    gesture = null;
+  };
+  board.addEventListener("pointerup", finish);
+  board.addEventListener("pointercancel", finish);
+  board.addEventListener("contextmenu", (event) => event.preventDefault());
 }
 
-bindTouchControls();
+bindBoardGestures();
 
 // High-DPI canvas setup: each canvas's backing store matches its CSS size x
 // devicePixelRatio, while drawing code keeps using logical coordinates.
@@ -597,31 +612,11 @@ function drawHoldPreview() {
   applyCanvasTransform(previewContext, previewCanvas, previewSize, previewSize);
   const palette = getModePalette();
 
-  previewContext.fillStyle = palette.boardFill;
-  previewContext.fillRect(0, 0, previewSize, previewSize);
-
-  previewContext.lineWidth = 0.6;
-  for (let i = 0; i <= previewSize / BLOCK_SIZE; i++) {
-    previewContext.strokeStyle = i % 2 === 0 ? palette.gridMajor : palette.gridMinor;
-    previewContext.beginPath();
-    previewContext.moveTo(i * BLOCK_SIZE, 0);
-    previewContext.lineTo(i * BLOCK_SIZE, previewSize);
-    previewContext.stroke();
-  }
-  for (let i = 0; i <= previewSize / BLOCK_SIZE; i++) {
-    previewContext.strokeStyle = i % 2 === 0 ? palette.gridMajor : palette.gridMinor;
-    previewContext.beginPath();
-    previewContext.moveTo(0, i * BLOCK_SIZE);
-    previewContext.lineTo(previewSize, i * BLOCK_SIZE);
-    previewContext.stroke();
-  }
-
-  previewContext.fillStyle = "rgba(0, 0, 0, 0.05)";
-  previewContext.fillRect(0, 0, previewSize, previewSize);
+  drawWell(previewContext, previewSize, previewSize, palette);
 
   // If there's no held block, show empty preview
   if (!heldBlock || heldPoints.length === 0) {
-    previewContext.fillStyle = palette.holdEmpty;
+    previewContext.fillStyle = palette.emptyText;
     previewContext.font = `600 16px ${UI_FONT}`;
     previewContext.textAlign = "center";
     previewContext.fillText(
@@ -647,11 +642,12 @@ function drawHoldPreview() {
   const pieceWidth = maxX - minX + BLOCK_SIZE;
   const pieceHeight = maxY - minY + BLOCK_SIZE;
 
-  // Calculate scale to fit in preview with some padding
-  const padding = 30; // Increased padding for larger canvas
+  // Fit the piece with some padding; small pieces may grow up to 1.5x so
+  // they stay readable in the small preview tile.
+  const padding = 48;
   const scaleX = (previewSize - padding) / pieceWidth;
   const scaleY = (previewSize - padding) / pieceHeight;
-  const scale = Math.min(scaleX, scaleY, 1);
+  const scale = Math.min(scaleX, scaleY, 1.5);
 
   // Calculate offset to center the piece
   const offsetX = (previewSize - pieceWidth * scale) / 2;
@@ -662,15 +658,128 @@ function drawHoldPreview() {
     const x = (point.x - minX) * scale + offsetX;
     const y = (point.y - minY) * scale + offsetY;
 
-    previewContext.fillStyle = palette.holdFill || point.color;
-    previewContext.strokeStyle = palette.holdStroke;
-    previewContext.lineWidth = 1.2;
-
-    const blockSize = BLOCK_SIZE * scale;
-    previewContext.fillRect(x, y, blockSize, blockSize);
-    previewContext.strokeRect(x, y, blockSize, blockSize);
-
+    drawStone(previewContext, x, y, BLOCK_SIZE * scale, point.color, palette);
   });
+}
+
+// The board's background: a vertical gradient, a soft central glow and a
+// dot at each inner grid corner.
+function drawWell(context, width, height, palette) {
+  const gradient = context.createLinearGradient(0, 0, 0, height);
+  gradient.addColorStop(0, palette.wellTop);
+  gradient.addColorStop(1, palette.wellBottom);
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, width, height);
+
+  const glow = context.createRadialGradient(
+    width / 2, height * 0.38, width * 0.2,
+    width / 2, height / 2, Math.max(width, height) * 0.65
+  );
+  glow.addColorStop(0, `rgba(255, 255, 255, ${palette.wellGlow})`);
+  glow.addColorStop(1, "rgba(0, 0, 0, 0.28)");
+  context.fillStyle = glow;
+  context.fillRect(0, 0, width, height);
+
+  context.fillStyle = palette.dot;
+  for (let x = BLOCK_SIZE; x < width; x += BLOCK_SIZE) {
+    for (let y = BLOCK_SIZE; y < height; y += BLOCK_SIZE) {
+      context.beginPath();
+      context.arc(x, y, 1.3, 0, Math.PI * 2);
+      context.fill();
+    }
+  }
+}
+
+function drawBoard(context) {
+  // Re-apply the logical 400x800 transform every frame (other code may
+  // reset it, e.g. to clear the canvas between runs).
+  applyCanvasTransform(context, context.canvas, BOARD_WIDTH, BOARD_HEIGHT);
+  drawWell(context, BOARD_WIDTH, BOARD_HEIGHT, getModePalette());
+}
+
+// Lighten (amount > 0) or darken (amount < 0) a #rrggbb colour.
+function shadeColor(hex, amount) {
+  const value = parseInt(hex.slice(1), 16);
+  const channel = (c) =>
+    Math.round(amount < 0 ? c * (1 + amount) : c + (255 - c) * amount);
+  return `rgb(${channel(value >> 16)}, ${channel((value >> 8) & 255)}, ${channel(value & 255)})`;
+}
+
+function stonePath(context, x, y, size, radius) {
+  context.beginPath();
+  if (context.roundRect) {
+    context.roundRect(x, y, size, size, radius);
+  } else {
+    context.rect(x, y, size, size);
+  }
+}
+
+// One bevelled stone with its top-left corner at (x, y): lit from above,
+// a thin highlight along the top and a small carved ring in the middle.
+function drawStone(context, x, y, size, color, palette) {
+  const unit = size / BLOCK_SIZE;
+  const inset = 1.5 * unit;
+  const base = palette.stone || color;
+
+  const gradient = context.createLinearGradient(0, y, 0, y + size);
+  gradient.addColorStop(0, shadeColor(base, 0.28));
+  gradient.addColorStop(0.5, base);
+  gradient.addColorStop(1, shadeColor(base, -0.22));
+  stonePath(context, x + inset, y + inset, size - inset * 2, 5 * unit);
+  context.fillStyle = gradient;
+  context.fill();
+  context.strokeStyle = palette.stoneEdge;
+  context.lineWidth = 1.2 * unit;
+  context.stroke();
+
+  context.beginPath();
+  context.moveTo(x + 6 * unit, y + 4 * unit);
+  context.lineTo(x + size - 6 * unit, y + 4 * unit);
+  context.strokeStyle = "rgba(255, 255, 255, 0.45)";
+  context.lineWidth = 1.4 * unit;
+  context.stroke();
+
+  context.beginPath();
+  context.arc(x + size / 2, y + size / 2, 4.5 * unit, 0, Math.PI * 2);
+  context.strokeStyle = palette.stoneMark;
+  context.lineWidth = 1.2 * unit;
+  context.stroke();
+}
+
+// Board squares store their bottom edge as y.
+function drawBlock(context, x, y, color) {
+  drawStone(context, x, y - BLOCK_SIZE, BLOCK_SIZE, color, getModePalette());
+}
+
+// A still Classic board for the idle view, before a Classic game starts.
+const IDLE_BOARD = [
+  "..........",
+  "........I.",
+  "J.......I.",
+  "JJJ.SS..I.",
+  "ZZ.SSTTTI.",
+  "LZZOOQTLLL",
+];
+const IDLE_PIECE_TYPES = { I: 1, J: 2, L: 3, O: 4, S: 5, T: 6, Z: 7, Q: 8 };
+
+function drawIdleBoard() {
+  const canvas = document.getElementById("myCanvas");
+  const context = canvas ? canvas.getContext("2d") : null;
+  if (!context) {
+    return;
+  }
+  drawBoard(context);
+  const top = BOARD_HEIGHT - IDLE_BOARD.length * BLOCK_SIZE;
+  const cells = [];
+  IDLE_BOARD.forEach((row, r) => {
+    row.split("").forEach((ch, c) => {
+      const type = IDLE_PIECE_TYPES[ch];
+      if (type) {
+        cells.push({ x: c * BLOCK_SIZE, y: top + (r + 1) * BLOCK_SIZE, color: PIECES[type].color });
+      }
+    });
+  });
+  cells.forEach((cell) => drawBlock(context, cell.x, cell.y, cell.color));
 }
 
 function game(timestamp) {
@@ -693,61 +802,9 @@ function game(timestamp) {
   const step = Math.floor(fallProgress);
   fallProgress -= step;
 
-  function drawBoard(context) {
-    // Re-apply the logical 400x800 transform every frame (other code may
-    // reset it, e.g. to clear the canvas between runs).
-    applyCanvasTransform(context, canvas, BOARD_WIDTH, BOARD_HEIGHT);
-    const palette = getModePalette();
-    context.fillStyle = palette.boardFill;
-    context.fillRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT);
-
-    context.lineWidth = 0.8;
-
-    for (let i = 0; i <= 10; i++) {
-      context.strokeStyle = i % 2 === 0 ? palette.gridMajor : palette.gridMinor;
-      context.beginPath();
-      context.moveTo(i * BLOCK_SIZE, 0);
-      context.lineTo(i * BLOCK_SIZE, BOARD_HEIGHT);
-      context.stroke();
-    }
-
-    for (let i = 0; i <= 20; i++) {
-      context.strokeStyle = i % 2 === 0 ? palette.gridMajor : palette.gridMinor;
-      context.beginPath();
-      context.moveTo(0, i * BLOCK_SIZE);
-      context.lineTo(BOARD_WIDTH, i * BLOCK_SIZE);
-      context.stroke();
-    }
-  }
-
-  function drawBlockFill(context, x, y, color) {
-    context.fillStyle = getModePalette().pieceFill || color;
-    context.fillRect(x, y - BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-  }
-
-  function drawBlockBorders(context, x, y) {
-    context.strokeStyle = getModePalette().pieceStroke;
-    context.lineWidth = 1.8;
-    context.strokeRect(x, y - BLOCK_SIZE, BLOCK_SIZE, BLOCK_SIZE);
-  }
-
   function chooseBlock(context) {
-    for (let i = 0; i < squares.length; i++) {
-      let s = squares[i];
-      drawBlockFill(context, s.x, s.y, s.color);
-    }
-    for (let j = 0; j < currPoints.length; j++) {
-      let c = currPoints[j];
-      drawBlockFill(context, c.x, c.y, c.color);
-    }
-    for (let i = 0; i < squares.length; i++) {
-      const s = squares[i];
-      drawBlockBorders(context, s.x, s.y);
-    }
-    for (let j = 0; j < currPoints.length; j++) {
-      const c = currPoints[j];
-      drawBlockBorders(context, c.x, c.y);
-    }
+    squares.forEach((s) => drawBlock(context, s.x, s.y, s.color));
+    currPoints.forEach((c) => drawBlock(context, c.x, c.y, c.color));
   }
 
   // Create a canvas element
